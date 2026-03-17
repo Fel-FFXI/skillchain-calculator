@@ -1,0 +1,892 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FFXI Party Builder (WS + Skillchains + Advanced Filters)</title>
+  <style>
+    :root { color-scheme: dark light; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; line-height: 1.4; }
+    h1 { margin: 0 0 8px; }
+    .muted { opacity: 0.75; }
+    .card { border: 1px solid rgba(127,127,127,.35); border-radius: 14px; padding: 16px; margin: 16px 0; }
+    .grid6 { display: grid; grid-template-columns: repeat(6, minmax(140px, 1fr)); gap: 10px; }
+    label { display: block; font-size: 12px; opacity: .8; margin: 0 0 4px; }
+    select { width: 100%; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(127,127,127,.4); background: transparent; }
+    input[type="text"] { width: 100%; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(127,127,127,.4); background: transparent; }
+    .rowtitle { display:flex; align-items:baseline; justify-content:space-between; gap: 12px; }
+    .pill { font-size: 12px; padding: 4px 10px; border: 1px solid rgba(127,127,127,.35); border-radius: 999px; }
+    .btnbar { display:flex; gap: 10px; flex-wrap: wrap; }
+    button { padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(127,127,127,.45); background: transparent; cursor: pointer; }
+    button:hover { filter: brightness(1.08); }
+    pre { white-space: pre-wrap; word-break: break-word; padding: 12px; border-radius: 12px; border: 1px solid rgba(127,127,127,.35); margin: 10px 0 0; }
+    .warn { color: #ffcc66; }
+    details { border: 1px solid rgba(127,127,127,.25); border-radius: 12px; padding: 10px 12px; margin: 10px 0; }
+    summary { cursor: pointer; font-weight: 650; }
+    .cols { columns: 2; column-gap: 18px; }
+    .small { font-size: 12px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .check { display:flex; align-items:center; gap:8px; padding:6px 8px; border: 1px solid rgba(127,127,127,.25); border-radius: 10px; }
+    .check input { transform: translateY(0.5px); }
+    .grid4 { display:grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap:8px; }
+    .scroller { max-height: 280px; overflow:auto; padding-right: 6px; }
+    @media (max-width: 980px) { .grid6 { grid-template-columns: repeat(2, minmax(140px, 1fr)); } .cols { columns: 1; } .grid4 { grid-template-columns: repeat(2, minmax(160px, 1fr)); } }
+  </style>
+</head>
+<body>
+  <h1>FFXI Party Builder</h1>
+  <div class="muted">
+    Assumption: any job can use any weaponskill.
+    Weaponskills come from selected combat skills; then we enumerate valid multi-step <b>WS chains</b> via your skillchain rules.
+  </div>
+
+  <div class="card">
+    <div class="rowtitle">
+      <h2 style="margin:0">Party Jobs</h2>
+      <span class="pill" id="jobSummary">0/6 selected</span>
+    </div>
+    <div class="grid6" id="jobRow"></div>
+  </div>
+
+  <div class="card">
+    <div class="rowtitle">
+      <h2 style="margin:0">Combat Skills</h2>
+      <span class="pill" id="skillSummary">0/6 selected</span>
+    </div>
+    <div class="grid6" id="skillRow"></div>
+    <div class="muted" style="margin-top:10px">Pick one or more skills to populate the WS pool.</div>
+  </div>
+
+  <div class="card">
+    <div class="rowtitle">
+      <h2 style="margin:0">Weaponskills Preview</h2>
+      <span class="pill" id="wsCount">0 enabled</span>
+    </div>
+    <div class="muted small" style="margin-top:10px">
+      Use this preview to enable or disable specific weaponskills. Disabled weaponskills are removed from chain generation.
+    </div>
+    <div class="btnbar" style="margin-top:10px">
+      <button id="btnEnableAllWS">Enable all</button>
+      <button id="btnDisableAllWS">Disable all</button>
+    </div>
+    <div id="wsList" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <div class="rowtitle">
+      <h2 style="margin:0">Skillchain Filters</h2>
+      <span class="pill" id="propFilterSummary">No filters</span>
+    </div>
+
+    <div class="muted small" style="margin-top:10px">
+      Result filters apply to <b>A → B = Result</b>. If no results are checked, result filtering is disabled.
+      Weaponskill filtering is now controlled directly from the Weaponskills Preview section.
+    </div>
+
+    <div style="margin-top:12px; max-width:420px;">
+      <div class="rowtitle"><div style="font-weight:650">Result</div><span class="pill" id="sumResult">No filter</span></div>
+      <div style="display:flex; gap:10px; align-items:center; margin-top:8px">
+        <select id="modeResult" style="max-width:160px">
+          <option value="include">Include</option>
+          <option value="exclude">Exclude</option>
+        </select>
+        <button id="allResult" class="small">All</button>
+        <button id="noneResult" class="small">None</button>
+      </div>
+      <div id="checksResult" class="scroller" style="margin-top:10px; display:grid; grid-template-columns: 1fr; gap:8px;"></div>
+    </div>
+  </div>
+
+
+  <div class="card">
+    <div class="rowtitle">
+      <h2 style="margin:0">Skillchain Sequences</h2>
+      <span class="pill" id="chainCount">0</span>
+    </div>
+
+    <div class="btnbar">
+      <button id="btnExpandAll">Expand all</button>
+      <button id="btnCollapseAll">Collapse all</button>
+      <button id="btnDumpCsv">Dump CSV</button>
+      <label style="margin-left:10px; display:flex; align-items:center; gap:6px;">
+        <input type="checkbox" id="allowRepeatWS" checked />
+        Allow repeated WS
+      </label>
+
+    </div>
+
+    <div class="muted small" style="margin-top:10px">
+      Rules are evaluated as <b>A → B = Result</b>.
+      Each entry below enumerates WS chains (2+ steps).
+      For performance, each group shows up to <b id="capLabel"></b> example chains, but counts reflect the full filtered chain total.
+    </div>
+
+    <div id="scPairs" class="muted" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <div class="rowtitle">
+      <h2 style="margin:0">Export</h2>
+      <span class="pill">JSON</span>
+    </div>
+
+    <div class="btnbar">
+      <button id="btnCopy">Copy JSON</button>
+      <button id="btnReset">Reset</button>
+    </div>
+
+    <div id="warnings" class="muted" style="margin-top:10px"></div>
+    <pre id="output"></pre>
+  </div>
+
+<script>
+  const JOBS = [
+    { id: 'WAR', name: 'WAR — Warrior' },
+    { id: 'MNK', name: 'MNK — Monk' },
+    { id: 'WHM', name: 'WHM — White Mage' },
+    { id: 'BLM', name: 'BLM — Black Mage' },
+    { id: 'RDM', name: 'RDM — Red Mage' },
+    { id: 'THF', name: 'THF — Thief' },
+    { id: 'PLD', name: 'PLD — Paladin' },
+    { id: 'DRK', name: 'DRK — Dark Knight' },
+    { id: 'BST', name: 'BST — Beastmaster' },
+    { id: 'BRD', name: 'BRD — Bard' },
+    { id: 'RNG', name: 'RNG — Ranger' },
+    { id: 'SAM', name: 'SAM — Samurai' },
+    { id: 'NIN', name: 'NIN — Ninja' },
+    { id: 'DRG', name: 'DRG — Dragoon' },
+    { id: 'SMN', name: 'SMN — Summoner' },
+    { id: 'BLU', name: 'BLU — Blue Mage' },
+    { id: 'COR', name: 'COR — Corsair' },
+    { id: 'PUP', name: 'PUP — Puppetmaster' },
+    { id: 'DNC', name: 'DNC — Dancer' },
+    { id: 'SCH', name: 'SCH — Scholar' },
+    { id: 'GEO', name: 'GEO — Geomancer' },
+    { id: 'RUN', name: 'RUN — Rune Fencer' },
+  ];
+
+  const SKILLS = [
+    { id: 1,  name: 'Hand-to-Hand' },
+    { id: 2,  name: 'Dagger' },
+    { id: 3,  name: 'Sword' },
+    { id: 4,  name: 'Great Sword' },
+    { id: 5,  name: 'Axe' },
+    { id: 6,  name: 'Great Axe' },
+    { id: 7,  name: 'Scythe' },
+    { id: 8,  name: 'Polearm' },
+    { id: 9,  name: 'Katana' },
+    { id: 10, name: 'Great Katana' },
+    { id: 11, name: 'Club' },
+    { id: 12, name: 'Staff' },
+    { id: 25, name: 'Archery' },
+    { id: 26, name: 'Marksmanship' },
+  ];
+
+  const WEAPONSKILLS = [{"id": 1, "en": "Combo", "ja": "コンボ", "element": 6, "icon_id": 590, "prefix": "/weaponskill", "range": 2, "skill": 1, "first_sc_property": "Impaction", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 2, "en": "Shoulder Tackle", "ja": "タックル", "element": 4, "icon_id": 591, "prefix": "/weaponskill", "range": 2, "skill": 1, "first_sc_property": "Impaction", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 3, "en": "One Inch Punch", "ja": "短勁", "element": 6, "icon_id": 590, "prefix": "/weaponskill", "range": 2, "skill": 1, "first_sc_property": "Compression", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 4, "en": "Backhand Blow", "ja": "バックハンドブロー", "element": 6, "icon_id": 590, "prefix": "/weaponskill", "range": 2, "skill": 1, "first_sc_property": "Detonation", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 5, "en": "Raging Fists", "ja": "乱撃", "element": 6, "icon_id": 590, "prefix": "/weaponskill", "range": 2, "skill": 1, "first_sc_property": "Impaction", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 6, "en": "Spinning Attack", "ja": "スピンアタック", "element": 6, "icon_id": 590, "prefix": "/weaponskill", "range": 2, "skill": 1, "first_sc_property": "Liquefaction", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 7, "en": "Howling Fist", "ja": "空鳴拳", "element": 6, "icon_id": 590, "prefix": "/weaponskill", "range": 2, "skill": 1, "first_sc_property": "Transfixion", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 8, "en": "Dragon Kick", "ja": "双竜脚", "element": 6, "icon_id": 590, "prefix": "/weaponskill", "range": 2, "skill": 1, "first_sc_property": "Fragmentation", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 9, "en": "Asuran Fists", "ja": "夢想阿修羅拳", "element": 6, "icon_id": 590, "prefix": "/weaponskill", "range": 2, "skill": 1, "first_sc_property": "Gravitation", "second_sc_property": "Liquefaction", "third_sc_property": "", "targets": 32}, {"id": 10, "en": "Final Heaven", "ja": "ファイナルヘヴン", "element": 6, "icon_id": 590, "prefix": "/weaponskill", "range": 2, "skill": 1, "first_sc_property": "Light", "second_sc_property": "Fusion", "third_sc_property": "", "targets": 32}, {"id": 11, "en": "Ascetic's Fury", "ja": "アスケーテンツォルン", "element": 6, "icon_id": 590, "prefix": "/weaponskill", "range": 2, "skill": 1, "first_sc_property": "Fusion", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 12, "en": "Stringing Pummel", "ja": "連環六合圏", "element": 6, "icon_id": 590, "prefix": "/weaponskill", "range": 2, "skill": 1, "first_sc_property": "Gravitation", "second_sc_property": "Liquefaction", "third_sc_property": "", "targets": 32}, {"id": 13, "en": "Tornado Kick", "ja": "闘魂旋風脚", "element": 6, "icon_id": 590, "prefix": "/weaponskill", "range": 2, "skill": 1, "first_sc_property": "Induration", "second_sc_property": "Impaction", "third_sc_property": "Detonation", "targets": 32}, {"id": 14, "en": "Victory Smite", "ja": "ビクトリースマイト", "element": 6, "icon_id": 590, "prefix": "/weaponskill", "range": 2, "skill": 1, "first_sc_property": "Light", "second_sc_property": "Fragmentation", "third_sc_property": "", "targets": 32}, {"id": 15, "en": "Shijin Spiral", "ja": "四神円舞", "element": 0, "icon_id": 592, "prefix": "/weaponskill", "range": 2, "skill": 1, "first_sc_property": "Fusion", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 16, "en": "Wasp Sting", "ja": "ワスプスティング", "element": 5, "icon_id": 593, "prefix": "/weaponskill", "range": 2, "skill": 2, "first_sc_property": "Scission", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 17, "en": "Viper Bite", "ja": "バイパーバイト", "element": 5, "icon_id": 593, "prefix": "/weaponskill", "range": 2, "skill": 2, "first_sc_property": "Scission", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 18, "en": "Shadowstitch", "ja": "シャドーステッチ", "element": 1, "icon_id": 594, "prefix": "/weaponskill", "range": 2, "skill": 2, "first_sc_property": "Reverberation", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 19, "en": "Gust Slash", "ja": "ガストスラッシュ", "element": 2, "icon_id": 595, "prefix": "/weaponskill", "range": 10, "skill": 2, "first_sc_property": "Detonation", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 20, "en": "Cyclone", "ja": "サイクロン", "element": 2, "icon_id": 595, "prefix": "/weaponskill", "range": 10, "skill": 2, "first_sc_property": "Detonation", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 21, "en": "Energy Steal", "ja": "エナジースティール", "element": 7, "icon_id": 596, "prefix": "/weaponskill", "range": 2, "skill": 2, "first_sc_property": "", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 22, "en": "Energy Drain", "ja": "エナジードレイン", "element": 7, "icon_id": 596, "prefix": "/weaponskill", "range": 2, "skill": 2, "first_sc_property": "", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 23, "en": "Dancing Edge", "ja": "ダンシングエッジ", "element": 6, "icon_id": 597, "prefix": "/weaponskill", "range": 2, "skill": 2, "first_sc_property": "Scission", "second_sc_property": "Detonation", "third_sc_property": "", "targets": 32}, {"id": 24, "en": "Shark Bite", "ja": "シャークバイト", "element": 6, "icon_id": 597, "prefix": "/weaponskill", "range": 2, "skill": 2, "first_sc_property": "Fragmentation", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 25, "en": "Evisceration", "ja": "エヴィサレーション", "element": 6, "icon_id": 597, "prefix": "/weaponskill", "range": 2, "skill": 2, "first_sc_property": "Gravitation", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 26, "en": "Mercy Stroke", "ja": "マーシーストローク", "element": 6, "icon_id": 597, "prefix": "/weaponskill", "range": 2, "skill": 2, "first_sc_property": "Darkness", "second_sc_property": "Gravitation", "third_sc_property": "", "targets": 32}, {"id": 27, "en": "Mandalic Stab", "ja": "マンダリクスタッブ", "element": 6, "icon_id": 597, "prefix": "/weaponskill", "range": 2, "skill": 2, "first_sc_property": "Fusion", "second_sc_property": "Compression", "third_sc_property": "", "targets": 32}, {"id": 28, "en": "Mordant Rime", "ja": "モーダントライム", "element": 2, "icon_id": 595, "prefix": "/weaponskill", "range": 2, "skill": 2, "first_sc_property": "Fragmentation", "second_sc_property": "Distortion", "third_sc_property": "", "targets": 32}, {"id": 29, "en": "Pyrrhic Kleos", "ja": "ピリッククレオス", "element": 1, "icon_id": 594, "prefix": "/weaponskill", "range": 2, "skill": 2, "first_sc_property": "Distortion", "second_sc_property": "Scission", "third_sc_property": "", "targets": 32}, {"id": 30, "en": "Aeolian Edge", "ja": "イオリアンエッジ", "element": 2, "icon_id": 595, "prefix": "/weaponskill", "range": 2, "skill": 2, "first_sc_property": "Scission", "second_sc_property": "Detonation", "third_sc_property": "Impaction", "targets": 32}, {"id": 31, "en": "Rudra's Storm", "ja": "ルドラストーム", "element": 2, "icon_id": 595, "prefix": "/weaponskill", "range": 2, "skill": 2, "first_sc_property": "Darkness", "second_sc_property": "Distortion", "third_sc_property": "", "targets": 32}, {"id": 32, "en": "Fast Blade", "ja": "ファストブレード", "element": 6, "icon_id": 598, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Scission", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 33, "en": "Burning Blade", "ja": "バーニングブレード", "element": 0, "icon_id": 599, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Liquefaction", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 34, "en": "Red Lotus Blade", "ja": "レッドロータス", "element": 0, "icon_id": 599, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Liquefaction", "second_sc_property": "Detonation", "third_sc_property": "", "targets": 32}, {"id": 35, "en": "Flat Blade", "ja": "フラットブレード", "element": 4, "icon_id": 600, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Impaction", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 36, "en": "Shining Blade", "ja": "シャインブレード", "element": 6, "icon_id": 598, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Scission", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 37, "en": "Seraph Blade", "ja": "セラフブレード", "element": 6, "icon_id": 598, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Scission", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 38, "en": "Circle Blade", "ja": "サークルブレード", "element": 6, "icon_id": 598, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Reverberation", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 39, "en": "Spirits Within", "ja": "スピリッツウィズイン", "element": 15, "icon_id": 598, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 40, "en": "Vorpal Blade", "ja": "ボーパルブレード", "element": 6, "icon_id": 598, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Scission", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 41, "en": "Swift Blade", "ja": "スウィフトブレード", "element": 6, "icon_id": 598, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Gravitation", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 42, "en": "Savage Blade", "ja": "サベッジブレード", "element": 6, "icon_id": 598, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Fragmentation", "second_sc_property": "Scission", "third_sc_property": "", "targets": 32}, {"id": 43, "en": "Knights of Round", "ja": "ナイツオブラウンド", "element": 6, "icon_id": 598, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Light", "second_sc_property": "Fusion", "third_sc_property": "", "targets": 32}, {"id": 44, "en": "Death Blossom", "ja": "ロズレーファタール", "element": 4, "icon_id": 600, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Fragmentation", "second_sc_property": "Distortion", "third_sc_property": "", "targets": 32}, {"id": 45, "en": "Atonement", "ja": "ロイエ", "element": 15, "icon_id": 598, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Fusion", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 46, "en": "Expiacion", "ja": "エクスピアシオン", "element": 6, "icon_id": 598, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Distortion", "second_sc_property": "Scission", "third_sc_property": "", "targets": 32}, {"id": 47, "en": "Sanguine Blade", "ja": "サンギンブレード", "element": 7, "icon_id": 601, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 48, "en": "Hard Slash", "ja": "ハードスラッシュ", "element": 6, "icon_id": 602, "prefix": "/weaponskill", "range": 2, "skill": 4, "first_sc_property": "Scission", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 49, "en": "Power Slash", "ja": "パワースラッシュ", "element": 6, "icon_id": 602, "prefix": "/weaponskill", "range": 2, "skill": 4, "first_sc_property": "Transfixion", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 50, "en": "Frostbite", "ja": "フロストバイト", "element": 1, "icon_id": 603, "prefix": "/weaponskill", "range": 2, "skill": 4, "first_sc_property": "Induration", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 51, "en": "Freezebite", "ja": "フリーズバイト", "element": 1, "icon_id": 603, "prefix": "/weaponskill", "range": 2, "skill": 4, "first_sc_property": "Induration", "second_sc_property": "Detonation", "third_sc_property": "", "targets": 32}, {"id": 52, "en": "Shockwave", "ja": "ショックウェーブ", "element": 7, "icon_id": 604, "prefix": "/weaponskill", "range": 2, "skill": 4, "first_sc_property": "Reverberation", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 53, "en": "Crescent Moon", "ja": "クレセントムーン", "element": 6, "icon_id": 602, "prefix": "/weaponskill", "range": 2, "skill": 4, "first_sc_property": "Scission", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 54, "en": "Sickle Moon", "ja": "シックルムーン", "element": 6, "icon_id": 602, "prefix": "/weaponskill", "range": 2, "skill": 4, "first_sc_property": "Scission", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 55, "en": "Spinning Slash", "ja": "スピンスラッシュ", "element": 6, "icon_id": 602, "prefix": "/weaponskill", "range": 2, "skill": 4, "first_sc_property": "Fragmentation", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 56, "en": "Ground Strike", "ja": "グラウンドストライク", "element": 6, "icon_id": 602, "prefix": "/weaponskill", "range": 2, "skill": 4, "first_sc_property": "Fragmentation", "second_sc_property": "Distortion", "third_sc_property": "", "targets": 32}, {"id": 57, "en": "Scourge", "ja": "スカージ", "element": 6, "icon_id": 602, "prefix": "/weaponskill", "range": 2, "skill": 4, "first_sc_property": "Light", "second_sc_property": "Fusion", "third_sc_property": "", "targets": 32}, {"id": 58, "en": "Herculean Slash", "ja": "ヘラクレススラッシュ", "element": 1, "icon_id": 603, "prefix": "/weaponskill", "range": 2, "skill": 4, "first_sc_property": "Induration", "second_sc_property": "Impaction", "third_sc_property": "Detonation", "targets": 32}, {"id": 59, "en": "Torcleaver", "ja": "トアクリーバー", "element": 6, "icon_id": 602, "prefix": "/weaponskill", "range": 2, "skill": 4, "first_sc_property": "Light", "second_sc_property": "Distortion", "third_sc_property": "", "targets": 32}, {"id": 60, "en": "Resolution", "ja": "レゾルーション", "element": 6, "icon_id": 602, "prefix": "/weaponskill", "range": 2, "skill": 4, "first_sc_property": "Fragmentation", "second_sc_property": "Scission", "third_sc_property": "", "targets": 32}, {"id": 61, "en": "Dimidiation", "ja": "デミディエーション", "element": 6, "icon_id": 602, "prefix": "/weaponskill", "range": 2, "skill": 4, "first_sc_property": "Light", "second_sc_property": "Fragmentation", "third_sc_property": "", "targets": 32}, {"id": 62, "en": "Fimbulvetr", "ja": "フィンブルヴェト", "element": 6, "icon_id": 602, "prefix": "/weaponskill", "range": 2, "skill": 4, "first_sc_property": "Detonation", "second_sc_property": "Compression", "third_sc_property": "Distortion", "targets": 32}, {"id": 64, "en": "Raging Axe", "ja": "レイジングアクス", "element": 6, "icon_id": 605, "prefix": "/weaponskill", "range": 2, "skill": 5, "first_sc_property": "Detonation", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 65, "en": "Smash Axe", "ja": "スマッシュ", "element": 4, "icon_id": 606, "prefix": "/weaponskill", "range": 2, "skill": 5, "first_sc_property": "Induration", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 66, "en": "Gale Axe", "ja": "ラファールアクス", "element": 2, "icon_id": 607, "prefix": "/weaponskill", "range": 2, "skill": 5, "first_sc_property": "Detonation", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 67, "en": "Avalanche Axe", "ja": "アバランチアクス", "element": 6, "icon_id": 605, "prefix": "/weaponskill", "range": 2, "skill": 5, "first_sc_property": "Scission", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 68, "en": "Spinning Axe", "ja": "スピニングアクス", "element": 6, "icon_id": 605, "prefix": "/weaponskill", "range": 2, "skill": 5, "first_sc_property": "Liquefaction", "second_sc_property": "Scission", "third_sc_property": "Impaction", "targets": 32}, {"id": 69, "en": "Rampage", "ja": "ランページ", "element": 6, "icon_id": 605, "prefix": "/weaponskill", "range": 2, "skill": 5, "first_sc_property": "Scission", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 70, "en": "Calamity", "ja": "カラミティ", "element": 6, "icon_id": 605, "prefix": "/weaponskill", "range": 2, "skill": 5, "first_sc_property": "Scission", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 71, "en": "Mistral Axe", "ja": "ミストラルアクス", "element": 6, "icon_id": 605, "prefix": "/weaponskill", "range": 10, "skill": 5, "first_sc_property": "Fusion", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 72, "en": "Decimation", "ja": "デシメーション", "element": 6, "icon_id": 605, "prefix": "/weaponskill", "range": 2, "skill": 5, "first_sc_property": "Fusion", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 73, "en": "Onslaught", "ja": "オンスロート", "element": 6, "icon_id": 605, "prefix": "/weaponskill", "range": 2, "skill": 5, "first_sc_property": "Darkness", "second_sc_property": "Gravitation", "third_sc_property": "", "targets": 32}, {"id": 74, "en": "Primal Rend", "ja": "プライマルレンド", "element": 6, "icon_id": 605, "prefix": "/weaponskill", "range": 2, "skill": 5, "first_sc_property": "Gravitation", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 75, "en": "Bora Axe", "ja": "ボーラアクス", "element": 1, "icon_id": 608, "prefix": "/weaponskill", "range": 10, "skill": 5, "first_sc_property": "Scission", "second_sc_property": "Detonation", "third_sc_property": "", "targets": 32}, {"id": 76, "en": "Cloudsplitter", "ja": "クラウドスプリッタ", "element": 4, "icon_id": 606, "prefix": "/weaponskill", "range": 2, "skill": 5, "first_sc_property": "Darkness", "second_sc_property": "Fragmentation", "third_sc_property": "", "targets": 32}, {"id": 77, "en": "Ruinator", "ja": "ルイネーター", "element": 6, "icon_id": 605, "prefix": "/weaponskill", "range": 2, "skill": 5, "first_sc_property": "Distortion", "second_sc_property": "Detonation", "third_sc_property": "", "targets": 32}, {"id": 78, "en": "Blitz", "ja": "ブリッツ", "element": 6, "icon_id": 605, "prefix": "/weaponskill", "range": 2, "skill": 5, "first_sc_property": "Liquefaction", "second_sc_property": "Impaction", "third_sc_property": "Fragmentation", "targets": 32}, {"id": 80, "en": "Shield Break", "ja": "シールドブレイク", "element": 6, "icon_id": 609, "prefix": "/weaponskill", "range": 2, "skill": 6, "first_sc_property": "Impaction", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 81, "en": "Iron Tempest", "ja": "アイアンテンペスト", "element": 6, "icon_id": 609, "prefix": "/weaponskill", "range": 2, "skill": 6, "first_sc_property": "Scission", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 82, "en": "Sturmwind", "ja": "シュトルムヴィント", "element": 6, "icon_id": 609, "prefix": "/weaponskill", "range": 2, "skill": 6, "first_sc_property": "Reverberation", "second_sc_property": "Scission", "third_sc_property": "", "targets": 32}, {"id": 83, "en": "Armor Break", "ja": "アーマーブレイク", "element": 6, "icon_id": 609, "prefix": "/weaponskill", "range": 2, "skill": 6, "first_sc_property": "Impaction", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 84, "en": "Keen Edge", "ja": "キーンエッジ", "element": 6, "icon_id": 609, "prefix": "/weaponskill", "range": 2, "skill": 6, "first_sc_property": "Compression", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 85, "en": "Weapon Break", "ja": "ウェポンブレイク", "element": 6, "icon_id": 609, "prefix": "/weaponskill", "range": 2, "skill": 6, "first_sc_property": "Impaction", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 86, "en": "Raging Rush", "ja": "レイジングラッシュ", "element": 6, "icon_id": 609, "prefix": "/weaponskill", "range": 2, "skill": 6, "first_sc_property": "Induration", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 87, "en": "Full Break", "ja": "フルブレイク", "element": 6, "icon_id": 609, "prefix": "/weaponskill", "range": 2, "skill": 6, "first_sc_property": "Distortion", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 88, "en": "Steel Cyclone", "ja": "スチールサイクロン", "element": 6, "icon_id": 609, "prefix": "/weaponskill", "range": 2, "skill": 6, "first_sc_property": "Distortion", "second_sc_property": "Detonation", "third_sc_property": "", "targets": 32}, {"id": 89, "en": "Metatron Torment", "ja": "メタトロントーメント", "element": 6, "icon_id": 609, "prefix": "/weaponskill", "range": 2, "skill": 6, "first_sc_property": "Light", "second_sc_property": "Fusion", "third_sc_property": "", "targets": 32}, {"id": 90, "en": "King's Justice", "ja": "キングズジャスティス", "element": 6, "icon_id": 609, "prefix": "/weaponskill", "range": 2, "skill": 6, "first_sc_property": "Fragmentation", "second_sc_property": "Scission", "third_sc_property": "", "targets": 32}, {"id": 91, "en": "Fell Cleave", "ja": "フェルクリーヴ", "element": 6, "icon_id": 609, "prefix": "/weaponskill", "range": 2, "skill": 6, "first_sc_property": "Scission", "second_sc_property": "Detonation", "third_sc_property": "", "targets": 32}, {"id": 92, "en": "Ukko's Fury", "ja": "ウッコフューリー", "element": 3, "icon_id": 610, "prefix": "/weaponskill", "range": 2, "skill": 6, "first_sc_property": "Light", "second_sc_property": "Fragmentation", "third_sc_property": "", "targets": 32}, {"id": 93, "en": "Upheaval", "ja": "アップヒーバル", "element": 6, "icon_id": 609, "prefix": "/weaponskill", "range": 2, "skill": 6, "first_sc_property": "Fusion", "second_sc_property": "Compression", "third_sc_property": "", "targets": 32}, {"id": 94, "en": "Disaster", "ja": "ディザスター", "element": 6, "icon_id": 609, "prefix": "/weaponskill", "range": 2, "skill": 6, "first_sc_property": "Transfixion", "second_sc_property": "Scission", "third_sc_property": "Gravitation", "targets": 32}, {"id": 96, "en": "Slice", "ja": "スライス", "element": 6, "icon_id": 611, "prefix": "/weaponskill", "range": 2, "skill": 7, "first_sc_property": "Scission", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 97, "en": "Dark Harvest", "ja": "ダークハーベスト", "element": 7, "icon_id": 612, "prefix": "/weaponskill", "range": 2, "skill": 7, "first_sc_property": "Reverberation", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 98, "en": "Shadow of Death", "ja": "シャドーオブデス", "element": 7, "icon_id": 612, "prefix": "/weaponskill", "range": 2, "skill": 7, "first_sc_property": "Induration", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 99, "en": "Nightmare Scythe", "ja": "ナイトメアサイス", "element": 7, "icon_id": 612, "prefix": "/weaponskill", "range": 2, "skill": 7, "first_sc_property": "Compression", "second_sc_property": "Scission", "third_sc_property": "", "targets": 32}, {"id": 100, "en": "Spinning Scythe", "ja": "スピニングサイス", "element": 6, "icon_id": 611, "prefix": "/weaponskill", "range": 2, "skill": 7, "first_sc_property": "Reverberation", "second_sc_property": "Scission", "third_sc_property": "", "targets": 32}, {"id": 101, "en": "Vorpal Scythe", "ja": "ボーパルサイス", "element": 6, "icon_id": 611, "prefix": "/weaponskill", "range": 2, "skill": 7, "first_sc_property": "Transfixion", "second_sc_property": "Scission", "third_sc_property": "", "targets": 32}, {"id": 102, "en": "Guillotine", "ja": "ギロティン", "element": 2, "icon_id": 613, "prefix": "/weaponskill", "range": 2, "skill": 7, "first_sc_property": "Induration", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 103, "en": "Cross Reaper", "ja": "クロスリーパー", "element": 6, "icon_id": 611, "prefix": "/weaponskill", "range": 2, "skill": 7, "first_sc_property": "Distortion", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 104, "en": "Spiral Hell", "ja": "スパイラルヘル", "element": 6, "icon_id": 611, "prefix": "/weaponskill", "range": 2, "skill": 7, "first_sc_property": "Distortion", "second_sc_property": "Scission", "third_sc_property": "", "targets": 32}, {"id": 105, "en": "Catastrophe", "ja": "カタストロフィ", "element": 6, "icon_id": 611, "prefix": "/weaponskill", "range": 2, "skill": 7, "first_sc_property": "Darkness", "second_sc_property": "Gravitation", "third_sc_property": "", "targets": 32}, {"id": 106, "en": "Insurgency", "ja": "インサージェンシー", "element": 6, "icon_id": 611, "prefix": "/weaponskill", "range": 2, "skill": 7, "first_sc_property": "Fusion", "second_sc_property": "Compression", "third_sc_property": "", "targets": 32}, {"id": 107, "en": "Infernal Scythe", "ja": "インファナルサイズ", "element": 7, "icon_id": 612, "prefix": "/weaponskill", "range": 2, "skill": 7, "first_sc_property": "Compression", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 108, "en": "Quietus", "ja": "クワイタス", "element": 7, "icon_id": 612, "prefix": "/weaponskill", "range": 2, "skill": 7, "first_sc_property": "Darkness", "second_sc_property": "Distortion", "third_sc_property": "", "targets": 32}, {"id": 109, "en": "Entropy", "ja": "エントロピー", "element": 7, "icon_id": 612, "prefix": "/weaponskill", "range": 2, "skill": 7, "first_sc_property": "Gravitation", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 110, "en": "Origin", "ja": "ジ・オリジン", "element": 6, "icon_id": 611, "prefix": "/weaponskill", "range": 2, "skill": 7, "first_sc_property": "Induration", "second_sc_property": "Reverberation", "third_sc_property": "Fusion", "targets": 32}, {"id": 112, "en": "Double Thrust", "ja": "ダブルスラスト", "element": 6, "icon_id": 614, "prefix": "/weaponskill", "range": 2, "skill": 8, "first_sc_property": "Transfixion", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 113, "en": "Thunder Thrust", "ja": "サンダースラスト", "element": 4, "icon_id": 615, "prefix": "/weaponskill", "range": 2, "skill": 8, "first_sc_property": "Transfixion", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 114, "en": "Raiden Thrust", "ja": "ライデンスラスト", "element": 4, "icon_id": 615, "prefix": "/weaponskill", "range": 2, "skill": 8, "first_sc_property": "Transfixion", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 115, "en": "Leg Sweep", "ja": "足払い", "element": 4, "icon_id": 615, "prefix": "/weaponskill", "range": 2, "skill": 8, "first_sc_property": "Impaction", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 116, "en": "Penta Thrust", "ja": "ペンタスラスト", "element": 6, "icon_id": 614, "prefix": "/weaponskill", "range": 2, "skill": 8, "first_sc_property": "Compression", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 117, "en": "Vorpal Thrust", "ja": "ボーパルスラスト", "element": 6, "icon_id": 614, "prefix": "/weaponskill", "range": 2, "skill": 8, "first_sc_property": "Reverberation", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 118, "en": "Skewer", "ja": "スキュアー", "element": 6, "icon_id": 614, "prefix": "/weaponskill", "range": 2, "skill": 8, "first_sc_property": "Transfixion", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 119, "en": "Wheeling Thrust", "ja": "大車輪", "element": 6, "icon_id": 614, "prefix": "/weaponskill", "range": 2, "skill": 8, "first_sc_property": "Fusion", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 120, "en": "Impulse Drive", "ja": "インパルスドライヴ", "element": 6, "icon_id": 614, "prefix": "/weaponskill", "range": 2, "skill": 8, "first_sc_property": "Gravitation", "second_sc_property": "Induration", "third_sc_property": "", "targets": 32}, {"id": 121, "en": "Geirskogul", "ja": "ゲイルスコグル", "element": 6, "icon_id": 614, "prefix": "/weaponskill", "range": 2, "skill": 8, "first_sc_property": "Light", "second_sc_property": "Distortion", "third_sc_property": "", "targets": 32}, {"id": 122, "en": "Drakesbane", "ja": "雲蒸竜変", "element": 6, "icon_id": 614, "prefix": "/weaponskill", "range": 2, "skill": 8, "first_sc_property": "Fusion", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 123, "en": "Sonic Thrust", "ja": "ソニックスラスト", "element": 6, "icon_id": 614, "prefix": "/weaponskill", "range": 2, "skill": 8, "first_sc_property": "Transfixion", "second_sc_property": "Scission", "third_sc_property": "", "targets": 32}, {"id": 124, "en": "Camlann's Torment", "ja": "カムラン", "element": 6, "icon_id": 614, "prefix": "/weaponskill", "range": 2, "skill": 8, "first_sc_property": "Light", "second_sc_property": "Fragmentation", "third_sc_property": "", "targets": 32}, {"id": 125, "en": "Stardiver", "ja": "スターダイバー", "element": 3, "icon_id": 616, "prefix": "/weaponskill", "range": 2, "skill": 8, "first_sc_property": "Gravitation", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 126, "en": "Diarmuid", "ja": "ダーマット", "element": 6, "icon_id": 614, "prefix": "/weaponskill", "range": 2, "skill": 8, "first_sc_property": "Transfixion", "second_sc_property": "Scission", "third_sc_property": "Gravitation", "targets": 32}, {"id": 128, "en": "Blade: Rin", "ja": "臨", "element": 6, "icon_id": 617, "prefix": "/weaponskill", "range": 2, "skill": 9, "first_sc_property": "Transfixion", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 129, "en": "Blade: Retsu", "ja": "烈", "element": 1, "icon_id": 618, "prefix": "/weaponskill", "range": 2, "skill": 9, "first_sc_property": "Scission", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 130, "en": "Blade: Teki", "ja": "滴", "element": 5, "icon_id": 619, "prefix": "/weaponskill", "range": 2, "skill": 9, "first_sc_property": "Reverberation", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 131, "en": "Blade: To", "ja": "凍", "element": 1, "icon_id": 618, "prefix": "/weaponskill", "range": 2, "skill": 9, "first_sc_property": "Induration", "second_sc_property": "Detonation", "third_sc_property": "", "targets": 32}, {"id": 132, "en": "Blade: Chi", "ja": "地", "element": 3, "icon_id": 620, "prefix": "/weaponskill", "range": 2, "skill": 9, "first_sc_property": "Impaction", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 133, "en": "Blade: Ei", "ja": "影", "element": 7, "icon_id": 621, "prefix": "/weaponskill", "range": 2, "skill": 9, "first_sc_property": "Compression", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 134, "en": "Blade: Jin", "ja": "迅", "element": 6, "icon_id": 617, "prefix": "/weaponskill", "range": 2, "skill": 9, "first_sc_property": "Impaction", "second_sc_property": "Detonation", "third_sc_property": "", "targets": 32}, {"id": 135, "en": "Blade: Ten", "ja": "天", "element": 6, "icon_id": 617, "prefix": "/weaponskill", "range": 2, "skill": 9, "first_sc_property": "Gravitation", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 136, "en": "Blade: Ku", "ja": "空", "element": 6, "icon_id": 617, "prefix": "/weaponskill", "range": 2, "skill": 9, "first_sc_property": "Gravitation", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 137, "en": "Blade: Metsu", "ja": "生者必滅", "element": 6, "icon_id": 617, "prefix": "/weaponskill", "range": 2, "skill": 9, "first_sc_property": "Darkness", "second_sc_property": "Fragmentation", "third_sc_property": "", "targets": 32}, {"id": 138, "en": "Blade: Kamu", "ja": "カムハブリ", "element": 3, "icon_id": 620, "prefix": "/weaponskill", "range": 2, "skill": 9, "first_sc_property": "Fragmentation", "second_sc_property": "Compression", "third_sc_property": "", "targets": 32}, {"id": 139, "en": "Blade: Yu", "ja": "湧", "element": 5, "icon_id": 619, "prefix": "/weaponskill", "range": 2, "skill": 9, "first_sc_property": "Reverberation", "second_sc_property": "Scission", "third_sc_property": "", "targets": 32}, {"id": 140, "en": "Blade: Hi", "ja": "秘", "element": 6, "icon_id": 617, "prefix": "/weaponskill", "range": 2, "skill": 9, "first_sc_property": "Darkness", "second_sc_property": "Gravitation", "third_sc_property": "", "targets": 32}, {"id": 141, "en": "Blade: Shun", "ja": "瞬", "element": 6, "icon_id": 617, "prefix": "/weaponskill", "range": 2, "skill": 9, "first_sc_property": "Fusion", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 142, "en": "Zesho Meppo", "ja": "是生滅法", "element": 6, "icon_id": 617, "prefix": "/weaponskill", "range": 2, "skill": 9, "first_sc_property": "Induration", "second_sc_property": "Reverberation", "third_sc_property": "Fusion", "targets": 32}, {"id": 144, "en": "Tachi: Enpi", "ja": "壱之太刀・燕飛", "element": 6, "icon_id": 622, "prefix": "/weaponskill", "range": 2, "skill": 10, "first_sc_property": "Transfixion", "second_sc_property": "Scission", "third_sc_property": "", "targets": 32}, {"id": 145, "en": "Tachi: Hobaku", "ja": "弐之太刀・鋒縛", "element": 4, "icon_id": 623, "prefix": "/weaponskill", "range": 2, "skill": 10, "first_sc_property": "Induration", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 146, "en": "Tachi: Goten", "ja": "参之太刀・轟天", "element": 4, "icon_id": 623, "prefix": "/weaponskill", "range": 2, "skill": 10, "first_sc_property": "Transfixion", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 147, "en": "Tachi: Kagero", "ja": "四之太刀・陽炎", "element": 0, "icon_id": 624, "prefix": "/weaponskill", "range": 2, "skill": 10, "first_sc_property": "Liquefaction", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 148, "en": "Tachi: Jinpu", "ja": "五之太刀・陣風", "element": 2, "icon_id": 625, "prefix": "/weaponskill", "range": 2, "skill": 10, "first_sc_property": "Scission", "second_sc_property": "Detonation", "third_sc_property": "", "targets": 32}, {"id": 149, "en": "Tachi: Koki", "ja": "六之太刀・光輝", "element": 6, "icon_id": 622, "prefix": "/weaponskill", "range": 2, "skill": 10, "first_sc_property": "Reverberation", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 150, "en": "Tachi: Yukikaze", "ja": "七之太刀・雪風", "element": 7, "icon_id": 626, "prefix": "/weaponskill", "range": 2, "skill": 10, "first_sc_property": "Induration", "second_sc_property": "Detonation", "third_sc_property": "", "targets": 32}, {"id": 151, "en": "Tachi: Gekko", "ja": "八之太刀・月光", "element": 2, "icon_id": 625, "prefix": "/weaponskill", "range": 2, "skill": 10, "first_sc_property": "Distortion", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 152, "en": "Tachi: Kasha", "ja": "九之太刀・花車", "element": 1, "icon_id": 627, "prefix": "/weaponskill", "range": 2, "skill": 10, "first_sc_property": "Fusion", "second_sc_property": "Compression", "third_sc_property": "", "targets": 32}, {"id": 153, "en": "Tachi: Kaiten", "ja": "零之太刀・回天", "element": 6, "icon_id": 622, "prefix": "/weaponskill", "range": 2, "skill": 10, "first_sc_property": "Light", "second_sc_property": "Fragmentation", "third_sc_property": "", "targets": 32}, {"id": 154, "en": "Tachi: Rana", "ja": "十之太刀・乱鴉", "element": 6, "icon_id": 622, "prefix": "/weaponskill", "range": 2, "skill": 10, "first_sc_property": "Gravitation", "second_sc_property": "Induration", "third_sc_property": "", "targets": 32}, {"id": 155, "en": "Tachi: Ageha", "ja": "十一之太刀・鳳蝶", "element": 2, "icon_id": 625, "prefix": "/weaponskill", "range": 2, "skill": 10, "first_sc_property": "Compression", "second_sc_property": "Scission", "third_sc_property": "", "targets": 32}, {"id": 156, "en": "Tachi: Fudo", "ja": "祖之太刀・不動", "element": 6, "icon_id": 622, "prefix": "/weaponskill", "range": 2, "skill": 10, "first_sc_property": "Light", "second_sc_property": "Distortion", "third_sc_property": "", "targets": 32}, {"id": 157, "en": "Tachi: Shoha", "ja": "十二之太刀・照破", "element": 6, "icon_id": 622, "prefix": "/weaponskill", "range": 2, "skill": 10, "first_sc_property": "Fragmentation", "second_sc_property": "Compression", "third_sc_property": "", "targets": 32}, {"id": 158, "en": "Tachi: Suikawari", "ja": "盛夏之太刀・西瓜割", "element": 6, "icon_id": 622, "prefix": "/weaponskill", "range": 2, "first_sc_property": "Fusion", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 159, "en": "Tachi: Mumei", "ja": "絶之太刀・無名", "element": 6, "icon_id": 622, "prefix": "/weaponskill", "range": 2, "skill": 10, "first_sc_property": "Detonation", "second_sc_property": "Compression", "third_sc_property": "Distortion", "targets": 32}, {"id": 160, "en": "Shining Strike", "ja": "シャインストライク", "element": 6, "icon_id": 628, "prefix": "/weaponskill", "range": 2, "skill": 11, "first_sc_property": "Impaction", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 161, "en": "Seraph Strike", "ja": "セラフストライク", "element": 6, "icon_id": 628, "prefix": "/weaponskill", "range": 2, "skill": 11, "first_sc_property": "Impaction", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 162, "en": "Brainshaker", "ja": "ブレインシェイカー", "element": 4, "icon_id": 629, "prefix": "/weaponskill", "range": 2, "skill": 11, "first_sc_property": "Reverberation", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 163, "en": "Starlight", "ja": "スターライト", "element": 6, "icon_id": 628, "prefix": "/weaponskill", "range": 2, "skill": 11, "first_sc_property": "", "second_sc_property": "", "third_sc_property": "", "targets": 1}, {"id": 164, "en": "Moonlight", "ja": "ムーンライト", "element": 6, "icon_id": 628, "prefix": "/weaponskill", "range": 2, "skill": 11, "first_sc_property": "", "second_sc_property": "", "third_sc_property": "", "targets": 1}, {"id": 165, "en": "Skullbreaker", "ja": "スカルブレイカー", "element": 0, "icon_id": 630, "prefix": "/weaponskill", "range": 2, "skill": 11, "first_sc_property": "Induration", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 166, "en": "True Strike", "ja": "トゥルーストライク", "element": 6, "icon_id": 628, "prefix": "/weaponskill", "range": 2, "skill": 11, "first_sc_property": "Detonation", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 167, "en": "Judgment", "ja": "ジャッジメント", "element": 6, "icon_id": 628, "prefix": "/weaponskill", "range": 2, "skill": 11, "first_sc_property": "Impaction", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 168, "en": "Hexa Strike", "ja": "ヘキサストライク", "element": 6, "icon_id": 628, "prefix": "/weaponskill", "range": 2, "skill": 11, "first_sc_property": "Fusion", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 169, "en": "Black Halo", "ja": "ブラックヘイロー", "element": 6, "icon_id": 628, "prefix": "/weaponskill", "range": 2, "skill": 11, "first_sc_property": "Fragmentation", "second_sc_property": "Compression", "third_sc_property": "", "targets": 32}, {"id": 170, "en": "Randgrith", "ja": "ランドグリース", "element": 6, "icon_id": 628, "prefix": "/weaponskill", "range": 2, "skill": 11, "first_sc_property": "Light", "second_sc_property": "Fragmentation", "third_sc_property": "", "targets": 32}, {"id": 171, "en": "Mystic Boon", "ja": "ミスティックブーン", "element": 6, "icon_id": 628, "prefix": "/weaponskill", "range": 2, "skill": 11, "first_sc_property": "", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 172, "en": "Flash Nova", "ja": "フラッシュノヴァ", "element": 6, "icon_id": 628, "prefix": "/weaponskill", "range": 2, "skill": 11, "first_sc_property": "Induration", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 173, "en": "Dagan", "ja": "ダガン", "element": 6, "icon_id": 628, "prefix": "/weaponskill", "range": 2, "skill": 11, "first_sc_property": "", "second_sc_property": "", "third_sc_property": "", "targets": 1}, {"id": 174, "en": "Realmrazer", "ja": "レルムレイザー", "element": 6, "icon_id": 628, "prefix": "/weaponskill", "range": 2, "skill": 11, "first_sc_property": "Fusion", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 175, "en": "Exudation", "ja": "エクズデーション", "element": 6, "icon_id": 628, "prefix": "/weaponskill", "range": 2, "skill": 11, "first_sc_property": "Darkness", "second_sc_property": "Fragmentation", "third_sc_property": "", "targets": 32}, {"id": 176, "en": "Heavy Swing", "ja": "ヘヴィスイング", "element": 6, "icon_id": 631, "prefix": "/weaponskill", "range": 2, "skill": 12, "first_sc_property": "Impaction", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 177, "en": "Rock Crusher", "ja": "ロッククラッシャー", "element": 3, "icon_id": 632, "prefix": "/weaponskill", "range": 2, "skill": 12, "first_sc_property": "Impaction", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 178, "en": "Earth Crusher", "ja": "アースクラッシャー", "element": 3, "icon_id": 632, "prefix": "/weaponskill", "range": 2, "skill": 12, "first_sc_property": "Detonation", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 179, "en": "Starburst", "ja": "スターバースト", "element": 6, "icon_id": 631, "prefix": "/weaponskill", "range": 2, "skill": 12, "first_sc_property": "Compression", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 180, "en": "Sunburst", "ja": "サンバースト", "element": 6, "icon_id": 631, "prefix": "/weaponskill", "range": 2, "skill": 12, "first_sc_property": "Compression", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 181, "en": "Shell Crusher", "ja": "シェルクラッシャー", "element": 6, "icon_id": 631, "prefix": "/weaponskill", "range": 2, "skill": 12, "first_sc_property": "Detonation", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 182, "en": "Full Swing", "ja": "フルスイング", "element": 6, "icon_id": 631, "prefix": "/weaponskill", "range": 2, "skill": 12, "first_sc_property": "Liquefaction", "second_sc_property": "Impaction", "third_sc_property": "", "targets": 32}, {"id": 183, "en": "Spirit Taker", "ja": "スピリットテーカー", "element": 6, "icon_id": 631, "prefix": "/weaponskill", "range": 2, "skill": 12, "first_sc_property": "", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 184, "en": "Retribution", "ja": "レトリビューション", "element": 6, "icon_id": 631, "prefix": "/weaponskill", "range": 2, "skill": 12, "first_sc_property": "Gravitation", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 185, "en": "Gate of Tartarus", "ja": "タルタロスゲート", "element": 6, "icon_id": 631, "prefix": "/weaponskill", "range": 2, "skill": 12, "first_sc_property": "Darkness", "second_sc_property": "Distortion", "third_sc_property": "", "targets": 32}, {"id": 186, "en": "Vidohunir", "ja": "ヴィゾフニル", "element": 7, "icon_id": 633, "prefix": "/weaponskill", "range": 2, "skill": 12, "first_sc_property": "Fragmentation", "second_sc_property": "Distortion", "third_sc_property": "", "targets": 32}, {"id": 187, "en": "Garland of Bliss", "ja": "ガーランドオブブリス", "element": 6, "icon_id": 631, "prefix": "/weaponskill", "range": 2, "skill": 12, "first_sc_property": "Fusion", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 188, "en": "Omniscience", "ja": "オムニシエンス", "element": 7, "icon_id": 633, "prefix": "/weaponskill", "range": 2, "skill": 12, "first_sc_property": "Gravitation", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 189, "en": "Cataclysm", "ja": "カタクリスム", "element": 7, "icon_id": 633, "prefix": "/weaponskill", "range": 2, "skill": 12, "first_sc_property": "Compression", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 190, "en": "Myrkr", "ja": "ミルキル", "element": 7, "icon_id": 633, "prefix": "/weaponskill", "range": 2, "skill": 12, "first_sc_property": "", "second_sc_property": "", "third_sc_property": "", "targets": 1}, {"id": 191, "en": "Shattersoul", "ja": "シャッターソウル", "element": 4, "icon_id": 634, "prefix": "/weaponskill", "range": 2, "skill": 12, "first_sc_property": "Gravitation", "second_sc_property": "Induration", "third_sc_property": "", "targets": 32}, {"id": 192, "en": "Flaming Arrow", "ja": "フレイミングアロー", "element": 0, "icon_id": 635, "prefix": "/weaponskill", "range": 12, "skill": 25, "first_sc_property": "Liquefaction", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 193, "en": "Piercing Arrow", "ja": "ピアシングアロー", "element": 2, "icon_id": 636, "prefix": "/weaponskill", "range": 12, "skill": 25, "first_sc_property": "Reverberation", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 194, "en": "Dulling Arrow", "ja": "ダリングアロー", "element": 0, "icon_id": 635, "prefix": "/weaponskill", "range": 12, "skill": 25, "first_sc_property": "Liquefaction", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 196, "en": "Sidewinder", "ja": "サイドワインダー", "element": 6, "icon_id": 637, "prefix": "/weaponskill", "range": 12, "skill": 25, "first_sc_property": "Reverberation", "second_sc_property": "Transfixion", "third_sc_property": "Detonation", "targets": 32}, {"id": 197, "en": "Blast Arrow", "ja": "ブラストアロー", "element": 6, "icon_id": 637, "prefix": "/weaponskill", "range": 4, "skill": 25, "first_sc_property": "Induration", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 198, "en": "Arching Arrow", "ja": "アーチングアロー", "element": 6, "icon_id": 637, "prefix": "/weaponskill", "range": 12, "skill": 25, "first_sc_property": "Fusion", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 199, "en": "Empyreal Arrow", "ja": "エンピリアルアロー", "element": 6, "icon_id": 637, "prefix": "/weaponskill", "range": 12, "skill": 25, "first_sc_property": "Fusion", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 200, "en": "Namas Arrow", "ja": "南無八幡", "element": 6, "icon_id": 637, "prefix": "/weaponskill", "range": 12, "skill": 25, "first_sc_property": "Light", "second_sc_property": "Distortion", "third_sc_property": "", "targets": 32}, {"id": 201, "en": "Refulgent Arrow", "ja": "リフルジェントアロー", "element": 6, "icon_id": 637, "prefix": "/weaponskill", "range": 12, "skill": 25, "first_sc_property": "Reverberation", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 202, "en": "Jishnu's Radiance", "ja": "ジシュヌの光輝", "element": 6, "icon_id": 637, "prefix": "/weaponskill", "range": 12, "skill": 25, "first_sc_property": "Light", "second_sc_property": "Fusion", "third_sc_property": "", "targets": 32}, {"id": 203, "en": "Apex Arrow", "ja": "エイペクスアロー", "element": 6, "icon_id": 637, "prefix": "/weaponskill", "range": 12, "skill": 25, "first_sc_property": "Fragmentation", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 204, "en": "Sarv", "ja": "シャルヴ", "element": 6, "icon_id": 637, "prefix": "/weaponskill", "range": 12, "skill": 25, "first_sc_property": "Transfixion", "second_sc_property": "Scission", "third_sc_property": "Gravitation", "targets": 32}, {"id": 208, "en": "Hot Shot", "ja": "ホットショット", "element": 0, "icon_id": 638, "prefix": "/weaponskill", "range": 12, "skill": 26, "first_sc_property": "Reverberation", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 209, "en": "Split Shot", "ja": "スプリットショット", "element": 2, "icon_id": 639, "prefix": "/weaponskill", "range": 12, "skill": 26, "first_sc_property": "Reverberation", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 210, "en": "Sniper Shot", "ja": "スナイパーショット", "element": 0, "icon_id": 638, "prefix": "/weaponskill", "range": 12, "skill": 26, "first_sc_property": "Liquefaction", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 212, "en": "Slug Shot", "ja": "スラッグショット", "element": 6, "icon_id": 640, "prefix": "/weaponskill", "range": 12, "skill": 26, "first_sc_property": "Reverberation", "second_sc_property": "Transfixion", "third_sc_property": "Detonation", "targets": 32}, {"id": 213, "en": "Blast Shot", "ja": "ブラストショット", "element": 6, "icon_id": 640, "prefix": "/weaponskill", "range": 4, "skill": 26, "first_sc_property": "Induration", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 214, "en": "Heavy Shot", "ja": "ヘヴィショット", "element": 6, "icon_id": 640, "prefix": "/weaponskill", "range": 12, "skill": 26, "first_sc_property": "Fusion", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 215, "en": "Detonator", "ja": "デトネーター", "element": 6, "icon_id": 640, "prefix": "/weaponskill", "range": 12, "skill": 26, "first_sc_property": "Fusion", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 216, "en": "Coronach", "ja": "カラナック", "element": 6, "icon_id": 640, "prefix": "/weaponskill", "range": 12, "skill": 26, "first_sc_property": "Darkness", "second_sc_property": "Fragmentation", "third_sc_property": "", "targets": 32}, {"id": 217, "en": "Trueflight", "ja": "トゥルーフライト", "element": 6, "icon_id": 640, "prefix": "/weaponskill", "range": 12, "skill": 26, "first_sc_property": "Fragmentation", "second_sc_property": "Scission", "third_sc_property": "", "targets": 32}, {"id": 218, "en": "Leaden Salute", "ja": "レデンサリュート", "element": 7, "icon_id": 641, "prefix": "/weaponskill", "range": 12, "skill": 26, "first_sc_property": "Gravitation", "second_sc_property": "Transfixion", "third_sc_property": "", "targets": 32}, {"id": 219, "en": "Numbing Shot", "ja": "ナビングショット", "element": 1, "icon_id": 642, "prefix": "/weaponskill", "range": 4, "skill": 26, "first_sc_property": "Induration", "second_sc_property": "Impaction", "third_sc_property": "Detonation", "targets": 32}, {"id": 220, "en": "Wildfire", "ja": "ワイルドファイア", "element": 0, "icon_id": 638, "prefix": "/weaponskill", "range": 12, "skill": 26, "first_sc_property": "Darkness", "second_sc_property": "Gravitation", "third_sc_property": "", "targets": 32}, {"id": 221, "en": "Last Stand", "ja": "ラストスタンド", "element": 6, "icon_id": 640, "prefix": "/weaponskill", "range": 12, "skill": 26, "first_sc_property": "Fusion", "second_sc_property": "Reverberation", "third_sc_property": "", "targets": 32}, {"id": 222, "en": "Terminus", "ja": "ジ・エンド", "element": 6, "icon_id": 640, "prefix": "/weaponskill", "range": 12, "skill": 26, "first_sc_property": "Induration", "second_sc_property": "Reverberation", "third_sc_property": "Fusion", "targets": 32}, {"id": 224, "en": "Exenterator", "ja": "エクゼンテレター", "element": 3, "icon_id": 643, "prefix": "/weaponskill", "range": 2, "skill": 2, "first_sc_property": "Fragmentation", "second_sc_property": "Scission", "third_sc_property": "", "targets": 32}, {"id": 225, "en": "Chant du Cygne", "ja": "シャンデュシニュ", "element": 6, "icon_id": 644, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Light", "second_sc_property": "Distortion", "third_sc_property": "", "targets": 32}, {"id": 226, "en": "Requiescat", "ja": "レクイエスカット", "element": 6, "icon_id": 644, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Gravitation", "second_sc_property": "Scission", "third_sc_property": "", "targets": 32}, {"id": 227, "en": "Knights of Rotund", "ja": "ナイスオブラウンド", "element": 6, "icon_id": 598, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Light", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 228, "en": "Final Paradise", "ja": "ファイナルパラダイス", "element": 6, "icon_id": 590, "prefix": "/weaponskill", "range": 2, "skill": 1, "first_sc_property": "Light", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 229, "en": "Fast Blade II", "ja": "ファストブレードII", "element": 6, "icon_id": 598, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Fusion", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 230, "en": "Dragon Blow", "ja": "ドラゴンブロウ", "element": 6, "icon_id": 590, "prefix": "/weaponskill", "range": 2, "skill": 1, "first_sc_property": "Distortion", "second_sc_property": "", "third_sc_property": "", "targets": 32}, {"id": 231, "en": "Maru Kala", "ja": "マルカラ", "element": 6, "icon_id": 590, "prefix": "/weaponskill", "range": 2, "skill": 1, "first_sc_property": "Detonation", "second_sc_property": "Compression", "third_sc_property": "Distortion", "targets": 32}, {"id": 232, "en": "Ruthless Stroke", "ja": "ルースレスストローク", "element": 6, "icon_id": 597, "prefix": "/weaponskill", "range": 2, "skill": 2, "first_sc_property": "Liquefaction", "second_sc_property": "Impaction", "third_sc_property": "Fragmentation", "targets": 32}, {"id": 233, "en": "Imperator", "ja": "インペラトル", "element": 6, "icon_id": 598, "prefix": "/weaponskill", "range": 2, "skill": 3, "first_sc_property": "Detonation", "second_sc_property": "Compression", "third_sc_property": "Distortion", "targets": 32}, {"id": 234, "en": "Dagda", "ja": "ダグダ", "element": 6, "icon_id": 628, "prefix": "/weaponskill", "range": 2, "skill": 11, "first_sc_property": "Transfixion", "second_sc_property": "Scission", "third_sc_property": "Gravitation", "targets": 32}, {"id": 235, "en": "Oshala", "ja": "オシャラ", "element": 6, "icon_id": 631, "prefix": "/weaponskill", "range": 2, "skill": 12, "first_sc_property": "Induration", "second_sc_property": "Reverberation", "third_sc_property": "Fusion", "targets": 32}];
+  // Skillchain rules in ascending order: Level 1 → Level 2 → Level 3 → Level 4
+  // Format: [Result, A, B] meaning A → B = Result
+  // Later entries (higher level) overwrite earlier ones for same A→B
+  const possibleSkillchains = [
+    // Level 1
+    ["Liquefaction", "Impaction", "Liquefaction"],
+    ["Liquefaction", "Scission", "Liquefaction"],
+    ["Scission", "Liquefaction", "Scission"],
+    ["Scission", "Detonation", "Scission"],
+    ["Reverberation", "Scission", "Reverberation"],
+    ["Reverberation", "Transfixion", "Reverberation"],
+    ["Detonation", "Scission", "Detonation"],
+    ["Detonation", "Impaction", "Detonation"],
+    ["Detonation", "Compression", "Detonation"],
+    ["Induration", "Reverberation", "Induration"],
+    ["Impaction", "Reverberation", "Impaction"],
+    ["Impaction", "Induration", "Impaction"],
+    ["Transfixion", "Compression", "Transfixion"],
+    ["Compression", "Transfixion", "Compression"],
+    ["Compression", "Induration", "Compression"],
+    // Level 2
+    ["Fusion", "Liquefaction", "Impaction"],
+    ["Fusion", "Distortion", "Fusion"],
+    ["Gravitation", "Detonation", "Compression"],
+    ["Gravitation", "Fusion", "Gravitation"],
+    ["Distortion", "Transfixion", "Scission"],
+    ["Distortion", "Fragmentation", "Distortion"],
+    ["Fragmentation", "Induration", "Reverberation"],
+    ["Fragmentation", "Gravitation", "Fragmentation"],
+    // Level 3
+    ["Light", "Fragmentation", "Fusion"],
+    ["Light", "Fusion", "Fragmentation"],
+    ["Darkness", "Distortion", "Gravitation"],
+    ["Darkness", "Gravitation", "Distortion"],
+    // Level 4
+    ["Light", "Light", "Light"],
+    ["Darkness", "Darkness", "Darkness"]
+  ];
+
+  // Build lookup: A → B = Result (highest level wins due to ascending order)
+  const SC_RULES = (() => {
+    const rules = new Map();
+    for (const [result, a, b] of possibleSkillchains) {
+      if (!rules.has(a)) rules.set(a, new Map());
+      rules.get(a).set(b, result); // Later (higher level) overwrites earlier
+    }
+    return rules;
+  })();
+
+  const RULE_PROPERTIES = (() => {
+    const s = new Set();
+    for (const [result, a, b] of possibleSkillchains) { s.add(result); s.add(a); s.add(b); }
+    const tier = (p) => (p === 'Light' || p === 'Darkness') ? 3
+      : (p === 'Fusion' || p === 'Fragmentation' || p === 'Distortion' || p === 'Gravitation') ? 2
+      : 1;
+    return [...s].sort((x,y) => tier(y)-tier(x) || (x < y ? -1 : x > y ? 1 : 0));
+  })();
+
+  const state = {
+    allowRepeatedWS: true,
+    jobs: Array(6).fill(null),
+    skills: Array(6).fill(null),
+    weaponskills: [],
+    wsFlat: [],
+    wsSkillCounts: new Map(),
+    skillchainPairs: [],
+    filters: {
+      result: { mode: 'include', selected: new Set() },
+      ws:     { mode: 'exclude', selected: new Set() },
+    }
+  };
+
+  const PAIR_EXAMPLE_CAP = 60;
+  document.getElementById('capLabel').textContent = String(PAIR_EXAMPLE_CAP);
+
+  const $ = (sel) => document.querySelector(sel);
+
+  function buildSelect({ items, placeholder, onChange }) {
+    const sel = document.createElement('select');
+    const opt0 = document.createElement('option');
+    opt0.value = '';
+    opt0.textContent = placeholder;
+    sel.appendChild(opt0);
+
+    for (const it of items) {
+      const opt = document.createElement('option');
+      opt.value = it.id;
+      opt.textContent = it.name;
+      sel.appendChild(opt);
+    }
+
+    sel.addEventListener('change', () => {
+      const raw = sel.value;
+      const v = raw === '' ? null : (String(Number(raw)) === raw ? Number(raw) : raw);
+      onChange(v);
+    });
+
+    return sel;
+  }
+
+  function renderRows() {
+    const jobRow = $('#jobRow');
+    const skillRow = $('#skillRow');
+    jobRow.innerHTML = '';
+    skillRow.innerHTML = '';
+
+    for (let i = 0; i < 6; i++) {
+      const jobWrap = document.createElement('div');
+      const jobLabel = document.createElement('label');
+      jobLabel.textContent = `Slot ${i + 1}`;
+      const jobSelect = buildSelect({
+        items: JOBS,
+        placeholder: 'Select job…',
+        onChange: (v) => { state.jobs[i] = v; refresh(); }
+      });
+      jobWrap.appendChild(jobLabel);
+      jobWrap.appendChild(jobSelect);
+      jobRow.appendChild(jobWrap);
+
+      const skillWrap = document.createElement('div');
+      const skillLabel = document.createElement('label');
+      skillLabel.textContent = `Slot ${i + 1}`;
+      const skillSelect = buildSelect({
+        items: SKILLS,
+        placeholder: 'Select skill…',
+        onChange: (v) => { state.skills[i] = v; refresh(); }
+      });
+      skillWrap.appendChild(skillLabel);
+      skillWrap.appendChild(skillSelect);
+      skillRow.appendChild(skillWrap);
+    }
+  }
+
+  const countSelected = (arr) => arr.reduce((n, v) => n + (v ? 1 : 0), 0);
+
+  function findDuplicates(arr) {
+    const seen = new Map();
+    for (const v of arr) {
+      if (!v) continue;
+      seen.set(v, (seen.get(v) || 0) + 1);
+    }
+    return [...seen.entries()].filter(([, c]) => c > 1).map(([v, c]) => ({ v, c }));
+  }
+
+  function computeWeaponskills(skills) {
+    const skillCounts = new Map();
+    for (const skillId of skills) {
+      if (skillId == null) continue;
+      skillCounts.set(skillId, (skillCounts.get(skillId) || 0) + 1);
+    }
+    if (skillCounts.size === 0) return { grouped: [], flat: [], skillCounts };
+
+    const bySkill = new Map();
+    const flat = [];
+    for (const ws of WEAPONSKILLS) {
+      if (!skillCounts.has(ws.skill)) continue;
+      // Preserve property order: [first, second, third] for priority matching
+      const sc = [ws.first_sc_property, ws.second_sc_property, ws.third_sc_property].filter(Boolean);
+      const item = { id: ws.id, en: ws.en, skill: ws.skill, sc };
+      flat.push(item);
+      if (!bySkill.has(ws.skill)) bySkill.set(ws.skill, []);
+      bySkill.get(ws.skill).push(item);
+    }
+
+    const skillName = (id) => (SKILLS.find(s => s.id === id)?.name ?? `Skill ${id}`);
+
+    const grouped = [...bySkill.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([skillId, list]) => ({
+        skillId,
+        skillName: skillName(skillId),
+        selectedCount: skillCounts.get(skillId) || 0,
+        weaponskills: list
+          .slice()
+          .sort((a, b) => (a.en < b.en ? -1 : a.en > b.en ? 1 : a.id - b.id))
+          .map(ws => ({ id: ws.id, name: ws.en, sc: ws.sc }))
+      }));
+
+    flat.sort((a, b) => (a.en < b.en ? -1 : a.en > b.en ? 1 : a.id - b.id));
+    return { grouped, flat, skillCounts };
+  }
+
+  // Get skillchain result for the FIRST step: WS1 → WS2
+  // Uses WS1's properties in priority order as "A"
+  function getFirstStepResult(ws1, ws2) {
+    for (const aProp of ws1.sc) {
+      const inner = SC_RULES.get(aProp);
+      if (!inner) continue;
+      
+      for (const bProp of ws2.sc) {
+        const result = inner.get(bProp);
+        if (result) {
+          return { result, aProp, bProp };
+        }
+      }
+    }
+    return null;
+  }
+
+  // Get skillchain result for CONTINUING steps: PreviousResult → WS
+  // Uses the previous skillchain result as "A"
+  function getContinueStepResult(prevResult, ws) {
+    const inner = SC_RULES.get(prevResult);
+    if (!inner) return null;
+    
+    for (const bProp of ws.sc) {
+      const result = inner.get(bProp);
+      if (result) {
+        return { result, aProp: prevResult, bProp };
+      }
+    }
+    return null;
+  }
+
+  function applyModeFilter(set, mode, value) {
+    if (!set || !set.size) return true;
+    const isSelected = set.has(value);
+    return (mode === 'exclude') ? !isSelected : isSelected;
+  }
+
+  function filterWsList(list, wsFilter) {
+    if (!wsFilter.selected.size) return list;
+    if (wsFilter.mode === 'include') return list.filter(w => wsFilter.selected.has(w.id));
+    return list.filter(w => !wsFilter.selected.has(w.id));
+  }
+
+
+  function computeSkillchainChains(wsFlat, filters, skillCounts, options = {}) {
+    // Apply WS filter first
+    const filteredWS = filterWsList(wsFlat, filters.ws);
+    if (!filteredWS.length) {
+      return { groups: [], totalChains: 0, allChains: [] };
+    }
+
+    const MAX_EXAMPLES = PAIR_EXAMPLE_CAP;
+    const MAX_CHAIN_LENGTH = 6;
+    const captureAllChains = !!options.captureAllChains;
+
+    function tier(p) {
+      return (p === 'Light' || p === 'Darkness') ? 4
+        : (p === 'Fusion' || p === 'Fragmentation' || p === 'Distortion' || p === 'Gravitation') ? 2
+        : 1;
+    }
+
+    function buildTransitionTables(wsList) {
+      const firstStep = new Map();
+      const continueStep = new Map();
+
+      for (const opener of wsList) {
+        const arr = [];
+        for (const nextWS of wsList) {
+          const chain = getFirstStepResult(opener, nextWS);
+          if (!chain) continue;
+          arr.push({
+            nextWS,
+            result: chain.result,
+            aProp: chain.aProp,
+            bProp: chain.bProp
+          });
+        }
+        firstStep.set(opener.id, arr);
+      }
+
+      for (const prop of RULE_PROPERTIES) {
+        const arr = [];
+        for (const nextWS of wsList) {
+          const chain = getContinueStepResult(prop, nextWS);
+          if (!chain) continue;
+          arr.push({
+            nextWS,
+            result: chain.result,
+            aProp: chain.aProp,
+            bProp: chain.bProp
+          });
+        }
+        continueStep.set(prop, arr);
+      }
+
+      return { firstStep, continueStep };
+    }
+
+    const { firstStep, continueStep } = buildTransitionTables(filteredWS);
+
+    // Store chains grouped by final result.
+    // Each entry tracks the full count plus a capped list of display examples.
+    const chainsByResult = new Map();
+    const visited = new Set();
+    const allChains = [];
+
+    // Recursive function to build chains
+    // currentChain: array of WS objects
+    // currentResults: array of skillchain results after each step
+    // seenResults: Set of results we've seen (chain ends when result repeats)
+    // usedSkillCounts: Map skillId -> how many WS from that weapon skill are already in currentChain
+    function buildChains(currentChain, currentResults, seenResults, usedSkillCounts) {
+      const lastWS = currentChain[currentChain.length - 1];
+      const lastResult = currentResults.length > 0 ? currentResults[currentResults.length - 1] : null;
+      const seenKey = [...seenResults].sort().join('|');
+      const usageKey = [...usedSkillCounts.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([skillId, count]) => `${skillId}:${count}`)
+        .join('|');
+      const stateKey = `${lastWS.id}::${lastResult ?? 'START'}::${seenKey}::${usageKey}`;
+
+      if (visited.has(stateKey)) return;
+      visited.add(stateKey);
+
+      const candidates = (lastResult === null)
+        ? (firstStep.get(lastWS.id) || [])
+        : (continueStep.get(lastResult) || []);
+
+      for (const chain of candidates) {
+        const nextWS = chain.nextWS;
+        if (!state.allowRepeatedWS && nextWS.id === lastWS.id) continue;
+
+        const usedFromSkill = usedSkillCounts.get(nextWS.skill) || 0;
+        const allowedFromSkill = skillCounts.get(nextWS.skill) || 0;
+        if (usedFromSkill >= allowedFromSkill) continue;
+
+        const result = chain.result;
+
+        // Apply filters
+        if (!applyModeFilter(filters.result.selected, filters.result.mode, result)) continue;
+
+        // Add this chain to results
+        const newChain = [...currentChain, nextWS];
+        const newResults = [...currentResults, result];
+        const chainLength = newChain.length;
+
+        if (!chainsByResult.has(result)) {
+          chainsByResult.set(result, {
+            count: 0,
+            examples: [],
+            chainLengths: new Set()
+          });
+        }
+
+        const bucket = chainsByResult.get(result);
+        bucket.count += 1;
+        bucket.chainLengths.add(chainLength);
+
+        if (bucket.examples.length < MAX_EXAMPLES) {
+          bucket.examples.push({
+            wsLine: newChain.map(ws => ws.en).join(' → '),
+            scLine: newResults.join(' → ')
+          });
+        }
+
+        if (captureAllChains) {
+          allChains.push({
+            finalResult: result,
+            tier: tier(result),
+            chainLength,
+            weaponskills: newChain.map(ws => ws.en),
+            weaponIds: newChain.map(ws => ws.id),
+            skillIds: newChain.map(ws => ws.skill),
+            skillchainResults: [...newResults]
+          });
+        }
+
+        // Chain ends when result repeats OR we hit max length
+        const chainEnds = seenResults.has(result) || chainLength >= MAX_CHAIN_LENGTH;
+
+        if (!chainEnds) {
+          const newSeenResults = new Set(seenResults);
+          newSeenResults.add(result);
+          const newUsedSkillCounts = new Map(usedSkillCounts);
+          newUsedSkillCounts.set(nextWS.skill, usedFromSkill + 1);
+          buildChains(newChain, newResults, newSeenResults, newUsedSkillCounts);
+        }
+      }
+    }
+
+    // Start from each WS as opener
+    for (const opener of filteredWS) {
+      const usedSkillCounts = new Map();
+      usedSkillCounts.set(opener.skill, 1);
+      buildChains([opener], [], new Set(), usedSkillCounts);
+    }
+
+    // Convert to groups format for display
+    const groups = [];
+    let totalChains = 0;
+
+    // Sort results by tier (highest first)
+    const sortedResults = [...chainsByResult.keys()].sort((a, b) => tier(b) - tier(a));
+
+    for (const result of sortedResults) {
+      const bucket = chainsByResult.get(result);
+      if (!bucket || !bucket.count) continue;
+
+      totalChains += bucket.count;
+
+      groups.push({
+        finalResult: result,
+        tier: tier(result),
+        examples: bucket.examples,
+        count: bucket.count,
+        chainLengths: [...bucket.chainLengths].sort((a,b) => a-b)
+      });
+    }
+
+    // Sort by tier descending
+    groups.sort((a, b) => b.tier - a.tier);
+    if (captureAllChains) {
+      allChains.sort((a, b) => {
+        if (b.tier !== a.tier) return b.tier - a.tier;
+        if (a.finalResult !== b.finalResult) return a.finalResult.localeCompare(b.finalResult);
+        if (a.chainLength !== b.chainLength) return a.chainLength - b.chainLength;
+        return a.weaponskills.join(' → ').localeCompare(b.weaponskills.join(' → '));
+      });
+    }
+
+    return { groups, totalChains, allChains };
+  }
+
+
+  function renderRuleFilterSection(prefix, filterKey) {
+    const modeSel = document.getElementById(`mode${prefix}`);
+    const checksDiv = document.getElementById(`checks${prefix}`);
+    const sum = document.getElementById(`sum${prefix}`);
+    const btnAll = document.getElementById(`all${prefix}`);
+    const btnNone = document.getElementById(`none${prefix}`);
+
+    modeSel.value = state.filters[filterKey].mode;
+    modeSel.addEventListener('change', () => {
+      state.filters[filterKey].mode = modeSel.value;
+      updateFilterSummaries();
+      refresh();
+    });
+
+    function rebuild() {
+      checksDiv.innerHTML = '';
+      for (const prop of RULE_PROPERTIES) {
+        const wrap = document.createElement('label');
+        wrap.className = 'check';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = prop;
+        cb.checked = state.filters[filterKey].selected.has(prop);
+        cb.addEventListener('change', () => {
+          if (cb.checked) state.filters[filterKey].selected.add(prop);
+          else state.filters[filterKey].selected.delete(prop);
+          updateFilterSummaries();
+          refresh();
+        });
+        const span = document.createElement('span');
+        span.textContent = prop;
+        wrap.appendChild(cb); wrap.appendChild(span);
+        checksDiv.appendChild(wrap);
+      }
+    }
+
+    btnAll.addEventListener('click', () => {
+      for (const p of RULE_PROPERTIES) state.filters[filterKey].selected.add(p);
+      rebuild(); updateFilterSummaries(); refresh();
+    });
+
+    btnNone.addEventListener('click', () => {
+      state.filters[filterKey].selected.clear();
+      rebuild(); updateFilterSummaries(); refresh();
+    });
+
+    function update() {
+      const n = state.filters[filterKey].selected.size;
+      sum.textContent = n ? `${state.filters[filterKey].mode === 'exclude' ? 'Exclude' : 'Include'}: ${n}` : 'No filter';
+    }
+
+    rebuild();
+    update();
+    return { rebuild, update };
+  }
+
+  let ruleFiltersUI = null;
+
+  function updateFilterSummaries() {
+    const parts = [];
+    if (state.filters.result.selected.size) parts.push(`Result(${state.filters.result.mode}:${state.filters.result.selected.size})`);
+    if (state.filters.ws.selected.size) parts.push(`Disabled WS(${state.filters.ws.selected.size})`);
+    document.getElementById('propFilterSummary').textContent = parts.length ? parts.join(' · ') : 'No filters';
+
+    if (ruleFiltersUI) ruleFiltersUI.result.update();
+  }
+
+  function csvEscape(value) {
+    const s = String(value ?? '');
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }
+
+  function dumpCurrentSequencesCsv() {
+    const exportData = computeSkillchainChains(state.wsFlat, state.filters, state.wsSkillCounts, { captureAllChains: true });
+    const rows = [
+      ['final_result', 'tier', 'chain_length', 'weaponskills', 'skillchain_results', 'weapon_ids', 'skill_ids']
+    ];
+
+    for (const row of exportData.allChains) {
+      rows.push([
+        row.finalResult,
+        row.tier,
+        row.chainLength,
+        row.weaponskills.join(' -> '),
+        row.skillchainResults.join(' -> '),
+        row.weaponIds.join('|'),
+        row.skillIds.join('|')
+      ]);
+    }
+
+    const csv = rows.map(cols => cols.map(csvEscape).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const timestamp = new Date().toISOString().replace(/[:T]/g, '-').replace(/\..+/, '');
+    a.href = url;
+    a.download = `ffxi_skillchain_sequences_${timestamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    const btn = $('#btnDumpCsv');
+    if (btn) {
+      const old = btn.textContent;
+      btn.textContent = `Dumped ${exportData.allChains.length} row${exportData.allChains.length === 1 ? '' : 's'}`;
+      setTimeout(() => (btn.textContent = old), 1200);
+    }
+  }
+
+  function refresh() {
+    $('#jobSummary').textContent = `${countSelected(state.jobs)}/6 selected`;
+    $('#skillSummary').textContent = `${countSelected(state.skills)}/6 selected`;
+
+    const warnings = [];
+    const dupJobs = findDuplicates(state.jobs);
+    const dupSkills = findDuplicates(state.skills);
+    if (dupJobs.length) warnings.push(`Duplicate jobs: ${dupJobs.map(d => `${d.v}×${d.c}`).join(', ')}`);
+    if (dupSkills.length) warnings.push(`Duplicate skills: ${dupSkills.map(d => `${d.v}×${d.c}`).join(', ')}`);
+    $('#warnings').innerHTML = warnings.length
+      ? `<div class="warn">${warnings.map(w => `• ${w}`).join('<br/>')}</div>`
+      : '<span class="muted">No warnings.</span>';
+
+    const ws = computeWeaponskills(state.skills);
+    state.weaponskills = ws.grouped;
+    state.wsFlat = ws.flat;
+    state.wsSkillCounts = ws.skillCounts;
+
+    // prune disabled WS selections to still-present ids
+    const present = new Set(state.wsFlat.map(w => w.id));
+    for (const id of [...state.filters.ws.selected]) if (!present.has(id)) state.filters.ws.selected.delete(id);
+
+    // WS preview / filtering
+    const wsDiv = $('#wsList');
+    const enabledCount = state.wsFlat.filter(w => !state.filters.ws.selected.has(w.id)).length;
+    $('#wsCount').textContent = `${enabledCount} enabled`;
+    if (!state.wsFlat.length) {
+      wsDiv.innerHTML = '<span class="muted">Select one or more combat skills to list matching weaponskills.</span>';
+    } else {
+      wsDiv.innerHTML = state.weaponskills.map(group => {
+        const items = group.weaponskills.map(w => {
+          const checked = !state.filters.ws.selected.has(w.id) ? 'checked' : '';
+          const props = w.sc.length ? ` <span class="muted small">(${w.sc.join(' / ')})</span>` : '';
+          return `<label class="check${checked ? '' : ' muted'}" data-ws-id="${w.id}">
+            <input type="checkbox" data-ws-id="${w.id}" ${checked} />
+            <span>${w.name}${props}</span>
+          </label>`;
+        }).join('');
+        return `<div style="margin: 10px 0 0;">
+          <div class="rowtitle" style="margin-bottom:6px; align-items:center; gap:10px; flex-wrap:wrap;">
+            <div style="font-weight:600;">${group.skillName} <span class="muted">(${group.weaponskills.length} WS; selected ${group.selectedCount}x)</span></div>
+            <div class="btnbar" style="margin:0;">
+              <button type="button" class="small" data-enable-skill-id="${group.skillId}">Enable all</button>
+              <button type="button" class="small" data-disable-skill-id="${group.skillId}">Disable all</button>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr; gap:8px;">${items}</div>
+        </div>`;
+      }).join('');
+
+      wsDiv.querySelectorAll('input[data-ws-id]').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const id = Number(cb.getAttribute('data-ws-id'));
+          if (cb.checked) state.filters.ws.selected.delete(id);
+          else state.filters.ws.selected.add(id);
+          refresh();
+        });
+      });
+
+      wsDiv.querySelectorAll('button[data-enable-skill-id]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const skillId = Number(btn.getAttribute('data-enable-skill-id'));
+          for (const ws of state.wsFlat) {
+            if (ws.skill === skillId) state.filters.ws.selected.delete(ws.id);
+          }
+          refresh();
+        });
+      });
+
+      wsDiv.querySelectorAll('button[data-disable-skill-id]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const skillId = Number(btn.getAttribute('data-disable-skill-id'));
+          for (const ws of state.wsFlat) {
+            if (ws.skill === skillId) state.filters.ws.selected.add(ws.id);
+          }
+          refresh();
+        });
+      });
+    }
+
+    updateFilterSummaries();
+
+    // Skillchain pairs
+    const sc = computeSkillchainChains(state.wsFlat, state.filters, state.wsSkillCounts);
+    state.skillchainPairs = sc.groups;
+    $('#chainCount').textContent = String(sc.totalChains);
+
+    const scDiv = $('#scPairs');
+    if (!state.skillchainPairs.length) {
+      scDiv.innerHTML = '<span class="muted">No skillchain WS pairs found after applying filters.</span>';
+    } else {
+      scDiv.innerHTML = state.skillchainPairs.map(g => {
+        const tierLabel = g.tier === 4 ? 'Level 4' : g.tier === 2 ? 'Level 2' : 'Level 1';
+        const header = `${g.finalResult} (${tierLabel})`;
+        const meta = `<span class="muted small">(${g.count} total chain${g.count !== 1 ? 's' : ''}, showing up to ${g.examples.length} example${g.examples.length !== 1 ? 's' : ''}, chain lengths: ${g.chainLengths.join(', ')} WS)</span>`;
+        const list = g.examples.map(ex => {
+          // Calculate indent to align under second WS (first WS + " → ")
+          const firstWS = ex.wsLine.split(' → ')[0];
+          const indent = ' '.repeat(firstWS.length + 4); // +4 for " → "
+          return `• ${ex.wsLine}\n${indent}${ex.scLine}`;
+        }).join('\n');
+        return `<details>
+          <summary>${header} ${meta}</summary>
+          <pre class="examples-mono" style="margin-top:8px; font-family: monospace; font-size: 13px; white-space: pre-wrap;">${list || 'No examples.'}</pre>
+        </details>`;
+      }).join('');
+    }
+
+    $('#output').textContent = JSON.stringify({
+      jobs: state.jobs,
+      skills: state.skills,
+      filters: {
+        result: { mode: state.filters.result.mode, selected: [...state.filters.result.selected] },
+        disabled_ws_ids: [...state.filters.ws.selected],
+      },
+      weaponskills: state.weaponskills,
+      skillchain_chains: state.skillchainPairs
+    }, null, 2);
+  }
+
+  // Buttons
+  $('#btnCopy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText($('#output').textContent);
+      const btn = $('#btnCopy');
+      const old = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => (btn.textContent = old), 900);
+    } catch {
+      alert('Clipboard copy failed (browser permissions). You can manually copy from the output box.');
+    }
+  });
+
+  $('#btnReset').addEventListener('click', () => {
+    state.jobs = Array(6).fill(null);
+    state.skills = Array(6).fill(null);
+    state.weaponskills = [];
+    state.wsFlat = [];
+    state.wsSkillCounts = new Map();
+    state.skillchainPairs = [];
+    state.filters.result.selected.clear();
+    state.filters.ws.selected.clear();
+    renderRows();
+    ruleFiltersUI.result.rebuild();
+    refresh();
+  });
+
+  $('#btnEnableAllWS').addEventListener('click', () => {
+    state.filters.ws.selected.clear();
+    refresh();
+  });
+
+  $('#btnDisableAllWS').addEventListener('click', () => {
+    state.filters.ws.selected = new Set(state.wsFlat.map(w => w.id));
+    refresh();
+  });
+
+  $('#btnExpandAll').addEventListener('click', () => { document.querySelectorAll('details').forEach(d => d.open = true); });
+  $('#btnDumpCsv').addEventListener('click', dumpCurrentSequencesCsv);
+  $('#btnCollapseAll').addEventListener('click', () => { document.querySelectorAll('details').forEach(d => d.open = false); });
+
+  // Init
+  renderRows();
+  ruleFiltersUI = {
+    result: renderRuleFilterSection('Result', 'result'),
+  };
+  refresh();
+
+  const repeatBox = document.getElementById('allowRepeatWS');
+  if (repeatBox) {
+    repeatBox.checked = state.allowRepeatedWS;
+    repeatBox.addEventListener('change', () => {
+      state.allowRepeatedWS = repeatBox.checked;
+      refresh();
+    });
+  }
+
+</script>
+</body>
+</html>
