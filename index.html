@@ -3,44 +3,97 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FFXI Party Builder (WS + Skillchains + Advanced Filters)</title>
+  <title>FFXI Skillchain Sequence Generator (with Advanced Filters)</title>
   <style>
-    :root { color-scheme: dark light; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; line-height: 1.4; }
-    h1 { margin: 0 0 8px; }
-    .muted { opacity: 0.75; }
-    .card { border: 1px solid rgba(127,127,127,.35); border-radius: 14px; padding: 16px; margin: 16px 0; }
+    :root {
+      color-scheme: dark;
+      --bg: #111827;
+      --text: #e5e7eb;
+      --muted: rgba(229, 231, 235, 0.75);
+      --card: #1f2937;
+      --border: rgba(148, 163, 184, 0.35);
+      --border-strong: rgba(148, 163, 184, 0.5);
+      --field-bg: #0f172a;
+      --field-text: #f8fafc;
+      --option-bg: #0f172a;
+      --option-text: #f8fafc;
+      --accent: #60a5fa;
+      --warn: #fbbf24;
+    }
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --bg: #f8fafc;
+      --text: #0f172a;
+      --muted: rgba(15, 23, 42, 0.72);
+      --card: #ffffff;
+      --border: rgba(15, 23, 42, 0.16);
+      --border-strong: rgba(15, 23, 42, 0.28);
+      --field-bg: #ffffff;
+      --field-text: #0f172a;
+      --option-bg: #ffffff;
+      --option-text: #0f172a;
+      --accent: #2563eb;
+      --warn: #b45309;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; line-height: 1.4; background: var(--bg); color: var(--text); }
+    h1 { margin: 0; }
+    .pagehead { display:flex; align-items:flex-start; justify-content:space-between; gap: 16px; margin-bottom: 8px; flex-wrap: wrap; }
+    .muted { color: var(--muted); }
+    .card { border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin: 16px 0; background: var(--card); }
     .grid6 { display: grid; grid-template-columns: repeat(6, minmax(140px, 1fr)); gap: 10px; }
-    label { display: block; font-size: 12px; opacity: .8; margin: 0 0 4px; }
-    select { width: 100%; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(127,127,127,.4); background: transparent; }
-    input[type="text"] { width: 100%; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(127,127,127,.4); background: transparent; }
+    label { display: block; font-size: 12px; opacity: .9; margin: 0 0 4px; }
+    select, input[type="text"] { width: 100%; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--field-bg); color: var(--field-text); }
+    select option, select optgroup { background: var(--option-bg); color: var(--option-text); }
+    select:focus, input[type="text"]:focus, button:focus { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 2px; }
     .rowtitle { display:flex; align-items:baseline; justify-content:space-between; gap: 12px; }
-    .pill { font-size: 12px; padding: 4px 10px; border: 1px solid rgba(127,127,127,.35); border-radius: 999px; }
+    .pill { font-size: 12px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; }
     .btnbar { display:flex; gap: 10px; flex-wrap: wrap; }
-    button { padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(127,127,127,.45); background: transparent; cursor: pointer; }
+    button { padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--field-bg); color: var(--field-text); cursor: pointer; }
     button:hover { filter: brightness(1.08); }
-    pre { white-space: pre-wrap; word-break: break-word; padding: 12px; border-radius: 12px; border: 1px solid rgba(127,127,127,.35); margin: 10px 0 0; }
-    .warn { color: #ffcc66; }
-    details { border: 1px solid rgba(127,127,127,.25); border-radius: 12px; padding: 10px 12px; margin: 10px 0; }
+    pre { white-space: pre-wrap; word-break: break-word; padding: 12px; border-radius: 12px; border: 1px solid var(--border); margin: 10px 0 0; background: var(--field-bg); color: var(--field-text); }
+    .warn { color: var(--warn); }
+    details { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin: 10px 0; background: color-mix(in srgb, var(--card) 92%, var(--bg)); }
     summary { cursor: pointer; font-weight: 650; }
     .cols { columns: 2; column-gap: 18px; }
     .small { font-size: 12px; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    .check { display:flex; align-items:center; gap:8px; padding:6px 8px; border: 1px solid rgba(127,127,127,.25); border-radius: 10px; }
+    .check { display:flex; align-items:center; gap:8px; padding:6px 8px; border: 1px solid var(--border); border-radius: 10px; background: color-mix(in srgb, var(--card) 88%, var(--bg)); }
     .check input { transform: translateY(0.5px); }
     .grid4 { display:grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap:8px; }
-    .scroller { max-height: 280px; overflow:auto; padding-right: 6px; }
+    .scroller { max-height: none; overflow: visible; padding-right: 0; }
+    .ws-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:8px; }
+    .filter-groups-wrapper { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:14px; margin-top:12px; align-items:start; }
+    .filter-group { display:flex; flex-direction:column; gap:10px; padding:12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); margin-top: 0; min-width: 0; }
+    .filter-group-grid { display:grid; gap:8px 14px; }
+    .filter-group-grid.level1 { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+    .filter-group-grid.level2 { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+    .filter-group-grid.level3 { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+    @media (max-width: 900px) {
+      .filter-groups-wrapper { grid-template-columns: 1fr; }
+      .filter-group-grid.level1,
+      .filter-group-grid.level2,
+      .filter-group-grid.level3 { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
+    }
+    @media (max-width: 560px) {
+      .filter-group-grid.level1,
+      .filter-group-grid.level2,
+      .filter-group-grid.level3 { grid-template-columns: 1fr; max-width: none; }
+    }
+    .is-hidden { display: none !important; }
     @media (max-width: 980px) { .grid6 { grid-template-columns: repeat(2, minmax(140px, 1fr)); } .cols { columns: 1; } .grid4 { grid-template-columns: repeat(2, minmax(160px, 1fr)); } }
   </style>
 </head>
 <body>
-  <h1>FFXI Party Builder</h1>
+  <div class="pagehead">
+    <h1>FFXI Skillchain Sequence Generator (with Advanced Filters)</h1>
+    <button id="btnThemeToggle" type="button" aria-label="Toggle light and dark mode">Switch to Light Mode</button>
+  </div>
   <div class="muted">
-    Assumption: any job can use any weaponskill.
-    Weaponskills come from selected combat skills; then we enumerate valid multi-step <b>WS chains</b> via your skillchain rules.
+    Weaponskills come from selected combat skills; then we enumerate valid multi-step <b>skillchains</b> based on   <a href="https://www.bg-wiki.com/ffxi/Category:Skillchain#Multiple_Skillchain_Properties" target="_blank" rel="noopener noreferrer">skillchain rules</a>.
   </div>
 
-  <div class="card">
+  <div class="card is-hidden" id="partyJobsCard">
     <div class="rowtitle">
       <h2 style="margin:0">Party Jobs</h2>
       <span class="pill" id="jobSummary">0/6 selected</span>
@@ -83,7 +136,7 @@
       Weaponskill filtering is now controlled directly from the Weaponskills Preview section.
     </div>
 
-    <div style="margin-top:12px; max-width:420px;">
+    <div style="margin-top:12px;">
       <div class="rowtitle"><div style="font-weight:650">Result</div><span class="pill" id="sumResult">No filter</span></div>
       <div style="display:flex; gap:10px; align-items:center; margin-top:8px">
         <select id="modeResult" style="max-width:160px">
@@ -93,7 +146,7 @@
         <button id="allResult" class="small">All</button>
         <button id="noneResult" class="small">None</button>
       </div>
-      <div id="checksResult" class="scroller" style="margin-top:10px; display:grid; grid-template-columns: 1fr; gap:8px;"></div>
+      <div id="checksResult" class="scroller" style="margin-top:10px; display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:8px;"></div>
     </div>
   </div>
 
@@ -241,6 +294,12 @@
     return [...s].sort((x,y) => tier(y)-tier(x) || (x < y ? -1 : x > y ? 1 : 0));
   })();
 
+  const RESULT_FILTER_GROUPS = [
+    { label: 'Level 1', props: ['Liquefaction', 'Scission', 'Reverberation', 'Detonation', 'Induration', 'Impaction', 'Transfixion', 'Compression'] },
+    { label: 'Level 2', props: ['Fusion', 'Gravitation', 'Distortion', 'Fragmentation'] },
+    { label: 'Level 3', props: ['Light', 'Darkness'] },
+  ];
+
   const state = {
     allowRepeatedWS: true,
     jobs: Array(6).fill(null),
@@ -249,6 +308,7 @@
     wsFlat: [],
     wsSkillCounts: new Map(),
     skillchainPairs: [],
+    seenWsIds: new Set(),
     filters: {
       result: { mode: 'include', selected: new Set() },
       ws:     { mode: 'exclude', selected: new Set() },
@@ -259,6 +319,17 @@
   document.getElementById('capLabel').textContent = String(PAIR_EXAMPLE_CAP);
 
   const $ = (sel) => document.querySelector(sel);
+
+
+  const root = document.documentElement;
+
+  function applyTheme(theme) {
+    const normalized = theme === 'light' ? 'light' : 'dark';
+    root.setAttribute('data-theme', normalized);
+    const btn = document.getElementById('btnThemeToggle');
+    if (btn) btn.textContent = normalized === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+    try { localStorage.setItem('ffxiSkillchainTheme', normalized); } catch {}
+  }
 
   function buildSelect({ items, placeholder, onChange }) {
     const sel = document.createElement('select');
@@ -418,7 +489,7 @@
     }
 
     const MAX_EXAMPLES = PAIR_EXAMPLE_CAP;
-    const MAX_CHAIN_LENGTH = 6;
+    const MAX_CHAIN_LENGTH = 10;
     const captureAllChains = !!options.captureAllChains;
 
     function tier(p) {
@@ -606,6 +677,7 @@
     const sum = document.getElementById(`sum${prefix}`);
     const btnAll = document.getElementById(`all${prefix}`);
     const btnNone = document.getElementById(`none${prefix}`);
+    const groups = filterKey === 'result' ? RESULT_FILTER_GROUPS : [{ label: '', props: RULE_PROPERTIES }];
 
     modeSel.value = state.filters[filterKey].mode;
     modeSel.addEventListener('change', () => {
@@ -616,34 +688,66 @@
 
     function rebuild() {
       checksDiv.innerHTML = '';
-      for (const prop of RULE_PROPERTIES) {
-        const wrap = document.createElement('label');
-        wrap.className = 'check';
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.value = prop;
-        cb.checked = state.filters[filterKey].selected.has(prop);
-        cb.addEventListener('change', () => {
-          if (cb.checked) state.filters[filterKey].selected.add(prop);
-          else state.filters[filterKey].selected.delete(prop);
-          updateFilterSummaries();
-          refresh();
-        });
-        const span = document.createElement('span');
-        span.textContent = prop;
-        wrap.appendChild(cb); wrap.appendChild(span);
-        checksDiv.appendChild(wrap);
+      const wrapper = document.createElement('div');
+      wrapper.className = 'filter-groups-wrapper';
+      for (const group of groups) {
+        const section = document.createElement('div');
+        section.className = 'filter-group';
+
+        if (group.label) {
+          const title = document.createElement('div');
+          title.className = 'small';
+          title.style.fontWeight = '650';
+          title.style.marginBottom = '8px';
+          title.textContent = group.label;
+          section.appendChild(title);
+        }
+
+        const grid = document.createElement('div');
+        const levelClass = group.label === 'Level 1' ? 'level1'
+          : group.label === 'Level 2' ? 'level2'
+          : group.label === 'Level 3' ? 'level3'
+          : 'level1';
+        grid.className = `filter-group-grid ${levelClass}`;
+
+        for (const prop of group.props) {
+          const wrap = document.createElement('label');
+          wrap.className = 'check';
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.value = prop;
+          cb.checked = state.filters[filterKey].selected.has(prop);
+          cb.addEventListener('change', () => {
+            if (cb.checked) state.filters[filterKey].selected.add(prop);
+            else state.filters[filterKey].selected.delete(prop);
+            updateFilterSummaries();
+            refresh();
+          });
+          const span = document.createElement('span');
+          span.textContent = prop;
+          wrap.appendChild(cb);
+          wrap.appendChild(span);
+          grid.appendChild(wrap);
+        }
+
+        section.appendChild(grid);
+        wrapper.appendChild(section);
       }
+      checksDiv.appendChild(wrapper);
     }
 
     btnAll.addEventListener('click', () => {
       for (const p of RULE_PROPERTIES) state.filters[filterKey].selected.add(p);
-      rebuild(); updateFilterSummaries(); refresh();
+      rebuild();
+      updateFilterSummaries();
+      refresh();
     });
 
     btnNone.addEventListener('click', () => {
       state.filters[filterKey].selected.clear();
-      rebuild(); updateFilterSummaries(); refresh();
+      rebuild();
+      updateFilterSummaries();
+      refresh();
     });
 
     function update() {
@@ -732,6 +836,14 @@
     const present = new Set(state.wsFlat.map(w => w.id));
     for (const id of [...state.filters.ws.selected]) if (!present.has(id)) state.filters.ws.selected.delete(id);
 
+    // New weaponskills start disabled by default so their checkboxes are unchecked
+    for (const wsEntry of state.wsFlat) {
+      if (!state.seenWsIds.has(wsEntry.id)) {
+        state.seenWsIds.add(wsEntry.id);
+        state.filters.ws.selected.add(wsEntry.id);
+      }
+    }
+
     // WS preview / filtering
     const wsDiv = $('#wsList');
     const enabledCount = state.wsFlat.filter(w => !state.filters.ws.selected.has(w.id)).length;
@@ -756,7 +868,7 @@
               <button type="button" class="small" data-disable-skill-id="${group.skillId}">Disable all</button>
             </div>
           </div>
-          <div style="display:grid; grid-template-columns: 1fr; gap:8px;">${items}</div>
+          <div class="ws-grid">${items}</div>
         </div>`;
       }).join('');
 
@@ -870,6 +982,20 @@
   $('#btnExpandAll').addEventListener('click', () => { document.querySelectorAll('details').forEach(d => d.open = true); });
   $('#btnDumpCsv').addEventListener('click', dumpCurrentSequencesCsv);
   $('#btnCollapseAll').addEventListener('click', () => { document.querySelectorAll('details').forEach(d => d.open = false); });
+
+
+  const savedTheme = (() => {
+    try { return localStorage.getItem('ffxiSkillchainTheme'); } catch { return null; }
+  })();
+  applyTheme(savedTheme || 'dark');
+
+  const themeBtn = document.getElementById('btnThemeToggle');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', () => {
+      const next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      applyTheme(next);
+    });
+  }
 
   // Init
   renderRows();
