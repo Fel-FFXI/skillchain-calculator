@@ -1,8 +1,8 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+<!DOCTYPE html>
+<!-- saved from url=(0143)file:///C:/Users/Student/AppData/Local/Temp/claude/C-%2DAshita4-Ashita-v4beta-addons/aca95e4b-96f7-4188-9511-05478401c869/scratchpad/index.html -->
+<html lang="en" data-theme="dark"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FFXI Skillchain Sequence Generator (with Advanced Filters)</title>
   <style>
     :root {
@@ -82,6 +82,15 @@
     }
     .is-hidden { display: none !important; }
     @media (max-width: 980px) { .grid6 { grid-template-columns: repeat(2, minmax(140px, 1fr)); } .cols { columns: 1; } .grid4 { grid-template-columns: repeat(2, minmax(160px, 1fr)); } }
+
+    /* Skillchain type color badges */
+    .sc-badge { display:inline-block; padding:1px 7px; border-radius:6px; font-size:12px; font-weight:600; white-space:nowrap; }
+    .sc-dot { display:inline-block; width:9px; height:9px; border-radius:50%; flex-shrink:0; outline:1px solid rgba(128,128,128,0.4); }
+    /* Graph canvas */
+    #graphCanvas { display:block; width:100%; border-radius:10px; border:1px solid var(--border); background:var(--field-bg); cursor:grab; }
+    #graphCanvas:active { cursor:grabbing; }
+    .graph-legend { display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:10px; }
+    .graph-legend-item { display:flex; align-items:center; gap:5px; font-size:12px; }
   </style>
 </head>
 <body>
@@ -98,7 +107,7 @@
       <h2 style="margin:0">Party Jobs</h2>
       <span class="pill" id="jobSummary">0/6 selected</span>
     </div>
-    <div class="grid6" id="jobRow"></div>
+    <div class="grid6" id="jobRow"><div><label>Slot 1</label><select><option value="">Select job…</option><option value="WAR">WAR — Warrior</option><option value="MNK">MNK — Monk</option><option value="WHM">WHM — White Mage</option><option value="BLM">BLM — Black Mage</option><option value="RDM">RDM — Red Mage</option><option value="THF">THF — Thief</option><option value="PLD">PLD — Paladin</option><option value="DRK">DRK — Dark Knight</option><option value="BST">BST — Beastmaster</option><option value="BRD">BRD — Bard</option><option value="RNG">RNG — Ranger</option><option value="SAM">SAM — Samurai</option><option value="NIN">NIN — Ninja</option><option value="DRG">DRG — Dragoon</option><option value="SMN">SMN — Summoner</option><option value="BLU">BLU — Blue Mage</option><option value="COR">COR — Corsair</option><option value="PUP">PUP — Puppetmaster</option><option value="DNC">DNC — Dancer</option><option value="SCH">SCH — Scholar</option><option value="GEO">GEO — Geomancer</option><option value="RUN">RUN — Rune Fencer</option></select></div><div><label>Slot 2</label><select><option value="">Select job…</option><option value="WAR">WAR — Warrior</option><option value="MNK">MNK — Monk</option><option value="WHM">WHM — White Mage</option><option value="BLM">BLM — Black Mage</option><option value="RDM">RDM — Red Mage</option><option value="THF">THF — Thief</option><option value="PLD">PLD — Paladin</option><option value="DRK">DRK — Dark Knight</option><option value="BST">BST — Beastmaster</option><option value="BRD">BRD — Bard</option><option value="RNG">RNG — Ranger</option><option value="SAM">SAM — Samurai</option><option value="NIN">NIN — Ninja</option><option value="DRG">DRG — Dragoon</option><option value="SMN">SMN — Summoner</option><option value="BLU">BLU — Blue Mage</option><option value="COR">COR — Corsair</option><option value="PUP">PUP — Puppetmaster</option><option value="DNC">DNC — Dancer</option><option value="SCH">SCH — Scholar</option><option value="GEO">GEO — Geomancer</option><option value="RUN">RUN — Rune Fencer</option></select></div><div><label>Slot 3</label><select><option value="">Select job…</option><option value="WAR">WAR — Warrior</option><option value="MNK">MNK — Monk</option><option value="WHM">WHM — White Mage</option><option value="BLM">BLM — Black Mage</option><option value="RDM">RDM — Red Mage</option><option value="THF">THF — Thief</option><option value="PLD">PLD — Paladin</option><option value="DRK">DRK — Dark Knight</option><option value="BST">BST — Beastmaster</option><option value="BRD">BRD — Bard</option><option value="RNG">RNG — Ranger</option><option value="SAM">SAM — Samurai</option><option value="NIN">NIN — Ninja</option><option value="DRG">DRG — Dragoon</option><option value="SMN">SMN — Summoner</option><option value="BLU">BLU — Blue Mage</option><option value="COR">COR — Corsair</option><option value="PUP">PUP — Puppetmaster</option><option value="DNC">DNC — Dancer</option><option value="SCH">SCH — Scholar</option><option value="GEO">GEO — Geomancer</option><option value="RUN">RUN — Rune Fencer</option></select></div><div><label>Slot 4</label><select><option value="">Select job…</option><option value="WAR">WAR — Warrior</option><option value="MNK">MNK — Monk</option><option value="WHM">WHM — White Mage</option><option value="BLM">BLM — Black Mage</option><option value="RDM">RDM — Red Mage</option><option value="THF">THF — Thief</option><option value="PLD">PLD — Paladin</option><option value="DRK">DRK — Dark Knight</option><option value="BST">BST — Beastmaster</option><option value="BRD">BRD — Bard</option><option value="RNG">RNG — Ranger</option><option value="SAM">SAM — Samurai</option><option value="NIN">NIN — Ninja</option><option value="DRG">DRG — Dragoon</option><option value="SMN">SMN — Summoner</option><option value="BLU">BLU — Blue Mage</option><option value="COR">COR — Corsair</option><option value="PUP">PUP — Puppetmaster</option><option value="DNC">DNC — Dancer</option><option value="SCH">SCH — Scholar</option><option value="GEO">GEO — Geomancer</option><option value="RUN">RUN — Rune Fencer</option></select></div><div><label>Slot 5</label><select><option value="">Select job…</option><option value="WAR">WAR — Warrior</option><option value="MNK">MNK — Monk</option><option value="WHM">WHM — White Mage</option><option value="BLM">BLM — Black Mage</option><option value="RDM">RDM — Red Mage</option><option value="THF">THF — Thief</option><option value="PLD">PLD — Paladin</option><option value="DRK">DRK — Dark Knight</option><option value="BST">BST — Beastmaster</option><option value="BRD">BRD — Bard</option><option value="RNG">RNG — Ranger</option><option value="SAM">SAM — Samurai</option><option value="NIN">NIN — Ninja</option><option value="DRG">DRG — Dragoon</option><option value="SMN">SMN — Summoner</option><option value="BLU">BLU — Blue Mage</option><option value="COR">COR — Corsair</option><option value="PUP">PUP — Puppetmaster</option><option value="DNC">DNC — Dancer</option><option value="SCH">SCH — Scholar</option><option value="GEO">GEO — Geomancer</option><option value="RUN">RUN — Rune Fencer</option></select></div><div><label>Slot 6</label><select><option value="">Select job…</option><option value="WAR">WAR — Warrior</option><option value="MNK">MNK — Monk</option><option value="WHM">WHM — White Mage</option><option value="BLM">BLM — Black Mage</option><option value="RDM">RDM — Red Mage</option><option value="THF">THF — Thief</option><option value="PLD">PLD — Paladin</option><option value="DRK">DRK — Dark Knight</option><option value="BST">BST — Beastmaster</option><option value="BRD">BRD — Bard</option><option value="RNG">RNG — Ranger</option><option value="SAM">SAM — Samurai</option><option value="NIN">NIN — Ninja</option><option value="DRG">DRG — Dragoon</option><option value="SMN">SMN — Summoner</option><option value="BLU">BLU — Blue Mage</option><option value="COR">COR — Corsair</option><option value="PUP">PUP — Puppetmaster</option><option value="DNC">DNC — Dancer</option><option value="SCH">SCH — Scholar</option><option value="GEO">GEO — Geomancer</option><option value="RUN">RUN — Rune Fencer</option></select></div></div>
   </div>
 
   <div class="card">
@@ -106,7 +115,7 @@
       <h2 style="margin:0">Combat Skills</h2>
       <span class="pill" id="skillSummary">0/6 selected</span>
     </div>
-    <div class="grid6" id="skillRow"></div>
+    <div class="grid6" id="skillRow"><div><label>Slot 1</label><select><option value="">Select skill…</option><option value="1">Hand-to-Hand</option><option value="2">Dagger</option><option value="3">Sword</option><option value="4">Great Sword</option><option value="5">Axe</option><option value="6">Great Axe</option><option value="7">Scythe</option><option value="8">Polearm</option><option value="9">Katana</option><option value="10">Great Katana</option><option value="11">Club</option><option value="12">Staff</option><option value="25">Archery</option><option value="26">Marksmanship</option></select></div><div><label>Slot 2</label><select><option value="">Select skill…</option><option value="1">Hand-to-Hand</option><option value="2">Dagger</option><option value="3">Sword</option><option value="4">Great Sword</option><option value="5">Axe</option><option value="6">Great Axe</option><option value="7">Scythe</option><option value="8">Polearm</option><option value="9">Katana</option><option value="10">Great Katana</option><option value="11">Club</option><option value="12">Staff</option><option value="25">Archery</option><option value="26">Marksmanship</option></select></div><div><label>Slot 3</label><select><option value="">Select skill…</option><option value="1">Hand-to-Hand</option><option value="2">Dagger</option><option value="3">Sword</option><option value="4">Great Sword</option><option value="5">Axe</option><option value="6">Great Axe</option><option value="7">Scythe</option><option value="8">Polearm</option><option value="9">Katana</option><option value="10">Great Katana</option><option value="11">Club</option><option value="12">Staff</option><option value="25">Archery</option><option value="26">Marksmanship</option></select></div><div><label>Slot 4</label><select><option value="">Select skill…</option><option value="1">Hand-to-Hand</option><option value="2">Dagger</option><option value="3">Sword</option><option value="4">Great Sword</option><option value="5">Axe</option><option value="6">Great Axe</option><option value="7">Scythe</option><option value="8">Polearm</option><option value="9">Katana</option><option value="10">Great Katana</option><option value="11">Club</option><option value="12">Staff</option><option value="25">Archery</option><option value="26">Marksmanship</option></select></div><div><label>Slot 5</label><select><option value="">Select skill…</option><option value="1">Hand-to-Hand</option><option value="2">Dagger</option><option value="3">Sword</option><option value="4">Great Sword</option><option value="5">Axe</option><option value="6">Great Axe</option><option value="7">Scythe</option><option value="8">Polearm</option><option value="9">Katana</option><option value="10">Great Katana</option><option value="11">Club</option><option value="12">Staff</option><option value="25">Archery</option><option value="26">Marksmanship</option></select></div><div><label>Slot 6</label><select><option value="">Select skill…</option><option value="1">Hand-to-Hand</option><option value="2">Dagger</option><option value="3">Sword</option><option value="4">Great Sword</option><option value="5">Axe</option><option value="6">Great Axe</option><option value="7">Scythe</option><option value="8">Polearm</option><option value="9">Katana</option><option value="10">Great Katana</option><option value="11">Club</option><option value="12">Staff</option><option value="25">Archery</option><option value="26">Marksmanship</option></select></div></div>
     <div class="muted" style="margin-top:10px">Pick one or more skills to populate the WS pool.</div>
   </div>
 
@@ -122,7 +131,7 @@
       <button id="btnEnableAllWS">Enable all</button>
       <button id="btnDisableAllWS">Disable all</button>
     </div>
-    <div id="wsList" style="margin-top:10px"></div>
+    <div id="wsList" style="margin-top:10px"><span class="muted">Select one or more combat skills to list matching weaponskills.</span></div>
   </div>
 
   <div class="card">
@@ -146,8 +155,9 @@
         <button id="allResult" class="small">All</button>
         <button id="noneResult" class="small">None</button>
       </div>
-      <div id="checksResult" class="scroller" style="margin-top:10px; display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:8px;"></div>
+      <div id="checksResult" class="scroller" style="margin-top:10px; display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:8px;"><div class="filter-groups-wrapper"><div class="filter-group"><div class="small" style="font-weight: 650; margin-bottom: 8px;">Level 1</div><div class="filter-group-grid level1"><label class="check"><input type="checkbox" value="Liquefaction"><span class="sc-dot" style="background: rgb(255, 85, 51);"></span><span style="color: rgb(255, 85, 51);">Liquefaction</span></label><label class="check"><input type="checkbox" value="Scission"><span class="sc-dot" style="background: rgb(136, 187, 68);"></span><span style="color: rgb(136, 187, 68);">Scission</span></label><label class="check"><input type="checkbox" value="Reverberation"><span class="sc-dot" style="background: rgb(85, 170, 255);"></span><span style="color: rgb(85, 170, 255);">Reverberation</span></label><label class="check"><input type="checkbox" value="Detonation"><span class="sc-dot" style="background: rgb(204, 221, 0);"></span><span style="color: rgb(204, 221, 0);">Detonation</span></label><label class="check"><input type="checkbox" value="Induration"><span class="sc-dot" style="background: rgb(170, 221, 255);"></span><span style="color: rgb(170, 221, 255);">Induration</span></label><label class="check"><input type="checkbox" value="Impaction"><span class="sc-dot" style="background: rgb(255, 204, 0);"></span><span style="color: rgb(255, 204, 0);">Impaction</span></label><label class="check"><input type="checkbox" value="Transfixion"><span class="sc-dot" style="background: rgb(255, 136, 187);"></span><span style="color: rgb(255, 136, 187);">Transfixion</span></label><label class="check"><input type="checkbox" value="Compression"><span class="sc-dot" style="background: rgb(170, 102, 221);"></span><span style="color: rgb(170, 102, 221);">Compression</span></label></div></div><div class="filter-group"><div class="small" style="font-weight: 650; margin-bottom: 8px;">Level 2</div><div class="filter-group-grid level2"><label class="check"><input type="checkbox" value="Fusion"><span class="sc-dot" style="background: rgb(255, 122, 51);"></span><span style="color: rgb(255, 122, 51);">Fusion</span></label><label class="check"><input type="checkbox" value="Gravitation"><span class="sc-dot" style="background: rgb(204, 136, 68);"></span><span style="color: rgb(204, 136, 68);">Gravitation</span></label><label class="check"><input type="checkbox" value="Distortion"><span class="sc-dot" style="background: rgb(51, 204, 255);"></span><span style="color: rgb(51, 204, 255);">Distortion</span></label><label class="check"><input type="checkbox" value="Fragmentation"><span class="sc-dot" style="background: rgb(102, 221, 68);"></span><span style="color: rgb(102, 221, 68);">Fragmentation</span></label></div></div><div class="filter-group"><div class="small" style="font-weight: 650; margin-bottom: 8px;">Level 3</div><div class="filter-group-grid level3"><label class="check"><input type="checkbox" value="Light"><span class="sc-dot" style="background: rgb(255, 217, 102);"></span><span style="color: rgb(255, 217, 102);">Light</span></label><label class="check"><input type="checkbox" value="Darkness"><span class="sc-dot" style="background: rgb(181, 123, 255);"></span><span style="color: rgb(181, 123, 255);">Darkness</span></label></div></div></div></div>
     </div>
+    <div id="chainLengthFilter" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center"></div>
   </div>
 
 
@@ -158,11 +168,12 @@
     </div>
 
     <div class="btnbar">
+      <button id="btnShareLink">Copy share link</button>
       <button id="btnExpandAll">Expand all</button>
       <button id="btnCollapseAll">Collapse all</button>
       <button id="btnDumpCsv">Dump CSV</button>
       <label style="margin-left:10px; display:flex; align-items:center; gap:6px;">
-        <input type="checkbox" id="allowRepeatWS" checked />
+        <input type="checkbox" id="allowRepeatWS" checked="">
         Allow repeated WS
       </label>
 
@@ -171,13 +182,30 @@
     <div class="muted small" style="margin-top:10px">
       Rules are evaluated as <b>A → B = Result</b>.
       Each entry below enumerates WS chains (2+ steps).
-      For performance, each group shows up to <b id="capLabel"></b> example chains, but counts reflect the full filtered chain total.
+      For performance, each group shows up to <b id="capLabel">60</b> example chains, but counts reflect the full filtered chain total.
     </div>
 
-    <div id="scPairs" class="muted" style="margin-top:10px"></div>
+    <div id="scPairs" class="muted" style="margin-top:10px"><span class="muted">No skillchain WS pairs found after applying filters.</span></div>
   </div>
 
-  <div class="card">
+  <div class="card" id="graphCard">
+    <div class="rowtitle">
+      <h2 style="margin:0">Skillchain Graph</h2>
+      <span class="pill" id="graphNodeCount">0 nodes · 0 edges</span>
+    </div>
+    <div class="muted small" style="margin-top:8px">
+      Nodes are weaponskills; colored arrows show which skillchain type results from that pair. Drag nodes to rearrange. Scroll to zoom. Click a node to highlight its chains.
+    </div>
+    <div class="btnbar" style="margin-top:10px">
+      <button id="btnGraphReset">Reset layout</button>
+      <button id="btnGraphPin">Unpin all</button>
+      <button id="btnGraphPinNode" disabled>Pin node</button>
+    </div>
+    <canvas id="graphCanvas" height="692" style="margin-top:12px;" width="2361"></canvas>
+    <div class="graph-legend" id="graphLegend"></div>
+  </div>
+
+  <div class="card is-hidden">
     <div class="rowtitle">
       <h2 style="margin:0">Export</h2>
       <span class="pill">JSON</span>
@@ -185,11 +213,38 @@
 
     <div class="btnbar">
       <button id="btnCopy">Copy JSON</button>
+      <button id="btnShareLink">Copy share link</button>
       <button id="btnReset">Reset</button>
     </div>
 
-    <div id="warnings" class="muted" style="margin-top:10px"></div>
-    <pre id="output"></pre>
+    <div id="warnings" class="muted" style="margin-top:10px"><span class="muted">No warnings.</span></div>
+    <pre id="output">{
+  "jobs": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ],
+  "skills": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ],
+  "filters": {
+    "result": {
+      "mode": "include",
+      "selected": []
+    },
+    "disabled_ws_ids": []
+  },
+  "weaponskills": [],
+  "skillchain_chains": []
+}</pre>
   </div>
 
 <script>
@@ -300,6 +355,102 @@
     { label: 'Level 3', props: ['Light', 'Darkness'] },
   ];
 
+  const SC_COLORS = {
+    // Level 3
+    Light:         '#FFFFFF',  // white
+    Darkness:      '#111111',  // black
+    // Level 2 — blends of their two constituent elements
+    Fusion:        '#FF5533',  // Fire(red) + Light(white)  = warm red-orange
+    Fragmentation: '#88CC22',  // Wind(green) + Lightning(purple) = yellow-green
+    Distortion:    '#33AADD',  // Ice(cyan) + Water(blue)   = blue-teal
+    Gravitation:   '#997722',  // Earth(yellow) + Dark(black) = dark gold
+    // Level 1 — pure elements
+    Liquefaction:  '#FF2222',  // Fire      = red
+    Induration:    '#22DDFF',  // Ice       = cyan
+    Detonation:    '#33BB33',  // Wind      = green
+    Scission:      '#CCAA00',  // Earth     = yellow
+    Impaction:     '#9933FF',  // Lightning = purple
+    Reverberation: '#2255FF',  // Water     = blue
+    Transfixion:   '#F0F0F0',  // Light     = white
+    Compression:   '#444444',  // Darkness  = black
+  };
+
+  function tier(p) {
+    return (p === 'Light' || p === 'Darkness') ? 3
+      : (p === 'Fusion' || p === 'Fragmentation' || p === 'Distortion' || p === 'Gravitation') ? 2
+      : 1;
+  }
+
+  const EL_ICON = {
+    Fire:      'icons/fire.png',
+    Ice:       'icons/ice.png',
+    Wind:      'icons/wind.png',
+    Earth:     'icons/earth.png',
+    Lightning: 'icons/lightning.png',
+    Water:     'icons/water.png',
+    Light:     'icons/light.png',
+    Dark:      'icons/dark.png',
+  };
+
+  const SC_ELEMENTS = {
+    // Level 1
+    Liquefaction:  ['Fire'],
+    Induration:    ['Ice'],
+    Detonation:    ['Wind'],
+    Scission:      ['Earth'],
+    Impaction:     ['Lightning'],
+    Reverberation: ['Water'],
+    Transfixion:   ['Light'],
+    Compression:   ['Dark'],
+    // Level 2
+    Fusion:        ['Light', 'Fire'],
+    Fragmentation: ['Lightning', 'Wind'],
+    Gravitation:   ['Dark', 'Earth'],
+    Distortion:    ['Water', 'Ice'],
+    // Level 3
+    Light:         ['Fire', 'Wind', 'Lightning', 'Light'],
+    Darkness:      ['Ice', 'Earth', 'Water', 'Dark'],
+  };
+
+  function scIconsHtml(name, size = 16) {
+    const elements = SC_ELEMENTS[name];
+    if (!elements) return '';
+    return elements.map(el => EL_ICON[el]
+      ? `<img src="${EL_ICON[el]}" alt="${el}" title="${el}" style="width:${size}px;height:${size}px;vertical-align:middle;image-rendering:pixelated;">`
+      : ''
+    ).join('');
+  }
+
+  function scLuminance(color) {
+    const r = parseInt(color.slice(1,3), 16);
+    const g = parseInt(color.slice(3,5), 16);
+    const b = parseInt(color.slice(5,7), 16);
+    return { r, g, b, lum: (0.299*r + 0.587*g + 0.114*b) / 255 };
+  }
+
+  function scBadge(name) {
+    const color = SC_COLORS[name] || '#888';
+    const { r, g, b, lum } = scLuminance(color);
+    if (lum < 0.35) {
+      // Very dark — light text, white border so the badge is visible on dark cards
+      return `<span class="sc-badge" style="color:#e5e7eb;background:rgba(${r},${g},${b},0.92);border:1px solid rgba(255,255,255,0.30)">${name}</span>`;
+    }
+    if (lum > 0.80) {
+      // Very light — dark text, dark border so the badge is visible on light cards
+      return `<span class="sc-badge" style="color:#1a1a2e;background:rgba(${r},${g},${b},0.55);border:1px solid rgba(0,0,0,0.30)">${name}</span>`;
+    }
+    return `<span class="sc-badge" style="color:${color};background:${color}22;border:1px solid ${color}66">${name}</span>`;
+  }
+
+  // Returns a version of the SC color safe to use as inline text in any theme
+  function scSafeTextColor(name) {
+    const color = SC_COLORS[name] || '#888';
+    const { r, g, b, lum } = scLuminance(color);
+    if (lum < 0.40) return `rgb(${Math.min(255,r+160)},${Math.min(255,g+160)},${Math.min(255,b+160)})`;
+    if (lum > 0.80) return `rgb(${Math.max(0,r-160)},${Math.max(0,g-160)},${Math.max(0,b-160)})`;
+    return color;
+  }
+
   const state = {
     allowRepeatedWS: true,
     jobs: Array(6).fill(null),
@@ -310,8 +461,9 @@
     skillchainPairs: [],
     seenWsIds: new Set(),
     filters: {
-      result: { mode: 'include', selected: new Set() },
-      ws:     { mode: 'exclude', selected: new Set() },
+      result:       { mode: 'include', selected: new Set() },
+      ws:           { mode: 'exclude', selected: new Set() },
+      chainLengths: new Set(),   // empty = show all; '∞' for infinite chains
     }
   };
 
@@ -329,6 +481,7 @@
     const btn = document.getElementById('btnThemeToggle');
     if (btn) btn.textContent = normalized === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
     try { localStorage.setItem('ffxiSkillchainTheme', normalized); } catch {}
+    if (typeof drawGraph === 'function') drawGraph();
   }
 
   function buildSelect({ items, placeholder, onChange }) {
@@ -537,6 +690,26 @@
 
     const { firstStep, continueStep } = buildTransitionTables(filteredWS);
 
+    // Recognised infinite ring patterns.
+    // A chain is ∞ only when its tail of SC results exactly completes one of these rings:
+    //   Level 2: 4-step ring Fusion→Gravitation→Fragmentation→Distortion in any rotation.
+    //   Level 1: 3 recognised 2-step mutual pairs, either direction.
+    const _L2 = ['Fusion', 'Gravitation', 'Fragmentation', 'Distortion'];
+    const L2_RING_TAILS = new Set(
+      _L2.map((_, i) => [..._L2.slice(i), ..._L2.slice(0, i)].join('\0'))
+    );
+    const L1_RING_TAILS = new Set([
+      'Liquefaction\0Scission', 'Scission\0Liquefaction',
+      'Scission\0Detonation',   'Detonation\0Scission',
+      'Transfixion\0Compression', 'Compression\0Transfixion',
+    ]);
+    function completesRing(results) {
+      const n = results.length;
+      if (n >= 4 && L2_RING_TAILS.has(results.slice(n - 4).join('\0'))) return true;
+      if (n >= 2 && L1_RING_TAILS.has(results.slice(n - 2).join('\0'))) return true;
+      return false;
+    }
+
     // Store chains grouped by final result.
     // Each entry tracks the full count plus a capped list of display examples.
     const chainsByResult = new Map();
@@ -587,18 +760,25 @@
           chainsByResult.set(result, {
             count: 0,
             examples: [],
-            chainLengths: new Set()
+            chainLengths: new Set(),
+            hasInfinite: false
           });
         }
 
+        const isRepeat = seenResults.has(result);
+        const isInfinite = completesRing(newResults) ||
+          (isRepeat && result !== 'Light' && result !== 'Darkness');
+
         const bucket = chainsByResult.get(result);
         bucket.count += 1;
-        bucket.chainLengths.add(chainLength);
+        if (!isInfinite) bucket.chainLengths.add(chainLength - 1);
+        if (isInfinite) bucket.hasInfinite = true;
 
         if (bucket.examples.length < MAX_EXAMPLES) {
           bucket.examples.push({
             wsLine: newChain.map(ws => ws.en).join(' → '),
-            scLine: newResults.join(' → ')
+            scLine: newResults.join(' → '),
+            isInfinite
           });
         }
 
@@ -614,8 +794,8 @@
           });
         }
 
-        // Chain ends when result repeats OR we hit max length
-        const chainEnds = seenResults.has(result) || chainLength >= MAX_CHAIN_LENGTH;
+        // Chain ends when a ring is complete, result repeats, or we hit max length
+        const chainEnds = isInfinite || isRepeat || chainLength >= MAX_CHAIN_LENGTH;
 
         if (!chainEnds) {
           const newSeenResults = new Set(seenResults);
@@ -652,7 +832,8 @@
         tier: tier(result),
         examples: bucket.examples,
         count: bucket.count,
-        chainLengths: [...bucket.chainLengths].sort((a,b) => a-b)
+        chainLengths: [...bucket.chainLengths].sort((a,b) => a-b),
+        hasInfinite: bucket.hasInfinite
       });
     }
 
@@ -695,12 +876,42 @@
         section.className = 'filter-group';
 
         if (group.label) {
+          const header = document.createElement('div');
+          header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px';
+
           const title = document.createElement('div');
           title.className = 'small';
           title.style.fontWeight = '650';
-          title.style.marginBottom = '8px';
           title.textContent = group.label;
-          section.appendChild(title);
+          header.appendChild(title);
+
+          const btnRow = document.createElement('div');
+          btnRow.style.cssText = 'display:flex;gap:4px';
+
+          const btnAll = document.createElement('button');
+          btnAll.textContent = 'All';
+          btnAll.style.cssText = 'padding:1px 7px;font-size:11px';
+          btnAll.addEventListener('click', () => {
+            for (const p of group.props) state.filters[filterKey].selected.add(p);
+            rebuild();
+            updateFilterSummaries();
+            refresh();
+          });
+
+          const btnNone = document.createElement('button');
+          btnNone.textContent = 'None';
+          btnNone.style.cssText = 'padding:1px 7px;font-size:11px';
+          btnNone.addEventListener('click', () => {
+            for (const p of group.props) state.filters[filterKey].selected.delete(p);
+            rebuild();
+            updateFilterSummaries();
+            refresh();
+          });
+
+          btnRow.appendChild(btnAll);
+          btnRow.appendChild(btnNone);
+          header.appendChild(btnRow);
+          section.appendChild(header);
         }
 
         const grid = document.createElement('div');
@@ -723,9 +934,22 @@
             updateFilterSummaries();
             refresh();
           });
+          if (SC_COLORS[prop]) {
+            const dot = document.createElement('span');
+            dot.className = 'sc-dot';
+            dot.style.background = SC_COLORS[prop];
+            wrap.appendChild(cb);
+            wrap.appendChild(dot);
+          } else {
+            wrap.appendChild(cb);
+          }
+          const iconsSpan = document.createElement('span');
+          iconsSpan.innerHTML = scIconsHtml(prop, 14);
+          iconsSpan.style.cssText = 'display:inline-flex;gap:1px;vertical-align:middle;';
+          wrap.appendChild(iconsSpan);
           const span = document.createElement('span');
           span.textContent = prop;
-          wrap.appendChild(cb);
+          if (SC_COLORS[prop]) span.style.color = scSafeTextColor(prop);
           wrap.appendChild(span);
           grid.appendChild(wrap);
         }
@@ -840,9 +1064,16 @@
     for (const wsEntry of state.wsFlat) {
       if (!state.seenWsIds.has(wsEntry.id)) {
         state.seenWsIds.add(wsEntry.id);
-        state.filters.ws.selected.add(wsEntry.id);
+        // If restoring from URL, only enable the ones explicitly listed; otherwise disable all new WS
+        if (state._pendingEnabledWS) {
+          if (!state._pendingEnabledWS.has(wsEntry.id)) state.filters.ws.selected.add(wsEntry.id);
+        } else {
+          state.filters.ws.selected.add(wsEntry.id);
+        }
       }
     }
+    // Pending enabled WS only applies on first refresh after URL decode
+    if (state._pendingEnabledWS) delete state._pendingEnabledWS;
 
     // WS preview / filtering
     const wsDiv = $('#wsList');
@@ -909,26 +1140,91 @@
     state.skillchainPairs = sc.groups;
     $('#chainCount').textContent = String(sc.totalChains);
 
+    // Build chain-length filter UI
+    const clFilterDiv = $('#chainLengthFilter');
+    const allLengths = new Set();
+    let anyInfinite = false;
+    for (const g of state.skillchainPairs) {
+      g.chainLengths.forEach(l => allLengths.add(l));
+      if (g.hasInfinite) anyInfinite = true;
+    }
+    const clActive = state.filters.chainLengths;
+    if (!allLengths.size && !anyInfinite) {
+      clFilterDiv.innerHTML = '';
+    } else {
+      const sortedLengths = [...allLengths].sort((a, b) => a - b);
+      const tokens = sortedLengths.map(l => String(l));
+      if (anyInfinite) tokens.push('∞');
+      const anyActive = clActive.size === 0;
+      clFilterDiv.innerHTML = `<span class="muted small" style="margin-right:2px">Steps:</span>`
+        + `<button id="btnClAny" style="padding:2px 10px;font-size:12px;font-weight:600;${anyActive ? 'background:var(--accent);color:#fff;border-color:var(--accent);' : ''}">Any</button>`
+        + tokens.map(t => {
+            const active = clActive.has(t);
+            const label = t === '∞' ? '∞ Infinite' : t + (t === '1' ? ' Step' : ' Steps');
+            const btn = `<button data-cl="${t}" style="padding:2px 10px;font-size:12px;font-weight:600;${active ? 'background:var(--accent);color:#fff;border-color:var(--accent);' : ''}">${label}</button>`;
+            if (t !== '∞') return btn;
+            const tipText = 'Level 1 Infinite Skill Chains:\nLiquefaction ↔ Scission\nScission ↔ Detonation\nTransfixion ↔ Compression\n\nLevel 2 Infinite Skill Chain:\nFusion → Gravitation → Fragmentation → Distortion → Fusion …';
+            return `<span style="display:inline-flex;align-items:center;gap:2px">${btn}<span title="${tipText}" style="cursor:help;color:var(--muted);font-size:12px;line-height:1">ⓘ</span></span>`;
+          }).join('');
+
+      clFilterDiv.querySelectorAll('button[data-cl]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const v = btn.getAttribute('data-cl');
+          if (clActive.has(v)) clActive.delete(v); else clActive.add(v);
+          refresh();
+        });
+      });
+      const anyBtn = clFilterDiv.querySelector('#btnClAny');
+      if (anyBtn) anyBtn.addEventListener('click', () => { clActive.clear(); refresh(); });
+    }
+
     const scDiv = $('#scPairs');
     if (!state.skillchainPairs.length) {
       scDiv.innerHTML = '<span class="muted">No skillchain WS pairs found after applying filters.</span>';
     } else {
       scDiv.innerHTML = state.skillchainPairs.map(g => {
-        const tierLabel = g.tier === 4 ? 'Level 4' : g.tier === 2 ? 'Level 2' : 'Level 1';
-        const header = `${g.finalResult} (${tierLabel})`;
-        const meta = `<span class="muted small">(${g.count} total chain${g.count !== 1 ? 's' : ''}, showing up to ${g.examples.length} example${g.examples.length !== 1 ? 's' : ''}, chain lengths: ${g.chainLengths.join(', ')} WS)</span>`;
-        const list = g.examples.map(ex => {
-          // Calculate indent to align under second WS (first WS + " → ")
-          const firstWS = ex.wsLine.split(' → ')[0];
-          const indent = ' '.repeat(firstWS.length + 4); // +4 for " → "
-          return `• ${ex.wsLine}\n${indent}${ex.scLine}`;
-        }).join('\n');
+        // Apply chain-length filter to examples
+        const visibleExamples = clActive.size
+          ? g.examples.filter(ex => {
+              const len = String(ex.wsLine.split(' → ').length - 1);
+              return clActive.has(ex.isInfinite ? '∞' : len);
+            })
+          : g.examples;
+        if (clActive.size && !visibleExamples.length) return '';
+
+        const tierLabel = g.tier === 4 ? 'Level 4' : g.tier === 3 ? 'Level 3' : g.tier === 2 ? 'Level 2' : 'Level 1';
+        const headerBadge = scBadge(g.finalResult);
+        const infTag = g.hasInfinite ? `<span style="color:#60a5fa;font-size:12px;font-weight:600;margin-left:6px">∞</span>` : '';
+        const header = `${headerBadge} <span style="opacity:.7;font-size:13px">${tierLabel}</span>${infTag}`;
+        const clLengthsMeta = g.chainLengths.map(n => n + (n === 1 ? ' step' : ' steps')).join(', ');
+        const meta = `<span class="muted small">(${g.count} total chain${g.count !== 1 ? 's' : ''}, showing up to ${visibleExamples.length} example${visibleExamples.length !== 1 ? 's' : ''}, chain lengths: ${clLengthsMeta}${g.hasInfinite ? ' + ∞' : ''})</span>`;
+
+        const coloredRows = visibleExamples.map(ex => {
+          const wsParts = ex.wsLine.split(' → ');
+          const scParts = ex.scLine.split(' → ');
+          const steps = wsParts.length - 1;
+          const infBadge = ex.isInfinite
+            ? `<span style="display:inline-block;padding:1px 6px;border-radius:6px;font-size:11px;font-weight:700;background:#60a5fa22;border:1px solid #60a5fa66;color:#60a5fa;margin-left:4px;vertical-align:middle">∞ Infinite</span>`
+            : '';
+          const stepBadge = `<span style="display:inline-block;padding:1px 6px;border-radius:6px;font-size:11px;font-weight:700;background:var(--field-bg);border:1px solid var(--border);color:var(--muted);margin-left:6px;vertical-align:middle">${steps} Step${steps !== 1 ? 's' : ''}</span>`;
+          const wsHtml = wsParts.join(' <span style="opacity:.5">→</span> ');
+          const scHtml = scParts.map(s => scBadge(s)).join(' <span style="opacity:.5">→</span> ');
+          return `<div style="padding:4px 0; border-bottom:1px solid var(--border);">
+            <div style="font-family:monospace;font-size:13px">• ${wsHtml}${stepBadge}${infBadge}</div>
+            <div style="margin-left:1.2em;margin-top:2px">${scHtml}</div>
+          </div>`;
+        }).join('');
         return `<details>
           <summary>${header} ${meta}</summary>
-          <pre class="examples-mono" style="margin-top:8px; font-family: monospace; font-size: 13px; white-space: pre-wrap;">${list || 'No examples.'}</pre>
+          <div style="margin-top:8px">${coloredRows || 'No examples.'}</div>
         </details>`;
-      }).join('');
+      }).filter(Boolean).join('');
+
+      if (!scDiv.innerHTML) scDiv.innerHTML = '<span class="muted">No chains match the selected chain length filter.</span>';
     }
+
+    renderGraph();
+    encodeStateToURL();
 
     $('#output').textContent = JSON.stringify({
       jobs: state.jobs,
@@ -942,6 +1238,407 @@
     }, null, 2);
   }
 
+  // ─── Graph engine ────────────────────────────────────────────────────────
+  const graph = {
+    nodes: [],   // { id, label, x, y, vx, vy, pinned }
+    edges: [],   // { from, to, result }
+    pan: { x: 0, y: 0 },
+    zoom: 1,
+    dragging: null,   // node being dragged
+    panning: false,
+    panStart: null,
+    selectedNode: null,
+    animFrame: null,
+    simRunning: false,
+  };
+
+  const NODE_R = 28;
+  const FONT_SIZE = 11;
+
+  function buildGraph(wsFlat, filters) {
+    const enabledWS = wsFlat.filter(w => !filters.ws.selected.has(w.id));
+    const wsNameMap = new Map(enabledWS.map(w => [w.en, w]));
+    const nodeMap = new Map();
+    const edgeKey = new Map();
+
+    const clActive = filters.chainLengths;
+
+    if (clActive.size > 0 && state.skillchainPairs && state.skillchainPairs.length) {
+      // Derive edges from the same filtered examples shown in the sequences list
+      for (const g of state.skillchainPairs) {
+        const visibleExamples = g.examples.filter(ex => {
+          const len = String(ex.wsLine.split(' → ').length - 1);
+          return clActive.has(ex.isInfinite ? '∞' : len);
+        });
+        for (const ex of visibleExamples) {
+          const wsParts = ex.wsLine.split(' → ');
+          const scParts = ex.scLine.split(' → ');
+          for (let i = 0; i < wsParts.length - 1; i++) {
+            const a = wsNameMap.get(wsParts[i]);
+            const b = wsNameMap.get(wsParts[i + 1]);
+            if (!a || !b) continue;
+            const result = scParts[i];
+            nodeMap.set(a.id, a.en);
+            nodeMap.set(b.id, b.en);
+            const k = `${a.id}→${b.id}`;
+            const prev = edgeKey.get(k);
+            if (!prev || tier(result) > tier(prev.result)) edgeKey.set(k, { from: a.id, to: b.id, result });
+          }
+        }
+      }
+    } else {
+      // No chain-length filter: compute directly from SC rules
+      for (const a of enabledWS) {
+        for (const b of enabledWS) {
+          if (!state.allowRepeatedWS && a.id === b.id) continue;
+          for (const propA of a.sc) {
+            const innerMap = SC_RULES.get(propA);
+            if (!innerMap) continue;
+            for (const propB of b.sc) {
+              const result = innerMap.get(propB);
+              if (!result) continue;
+              if (filters.result.selected.size) {
+                const passes = filters.result.selected.has(result);
+                if (filters.result.mode === 'include' && !passes) continue;
+                if (filters.result.mode === 'exclude' &&  passes) continue;
+              }
+              nodeMap.set(a.id, a.en);
+              nodeMap.set(b.id, b.en);
+              const k = `${a.id}→${b.id}`;
+              const prev = edgeKey.get(k);
+              if (!prev || tier(result) > tier(prev.result)) edgeKey.set(k, { from: a.id, to: b.id, result });
+              break;
+            }
+            if (edgeKey.has(`${a.id}→${b.id}`)) break;
+          }
+        }
+      }
+    }
+
+    const canvas = document.getElementById('graphCanvas');
+    const W = canvas.clientWidth || 700;
+    const H = 520;
+
+    // Preserve existing positions for nodes that already exist
+    const oldNodes = new Map(graph.nodes.map(n => [n.id, n]));
+
+    graph.nodes = [...nodeMap.entries()].map(([id, label]) => {
+      const old = oldNodes.get(id);
+      if (old) return { id, label, x: old.x, y: old.y, vx: 0, vy: 0, pinned: old.pinned };
+      return {
+        id, label,
+        x: W / 2 + (Math.random() - 0.5) * W * 0.6,
+        y: H / 2 + (Math.random() - 0.5) * H * 0.6,
+        vx: 0, vy: 0, pinned: false
+      };
+    });
+    graph.edges = [...edgeKey.values()];
+
+    document.getElementById('graphNodeCount').textContent =
+      `${graph.nodes.length} nodes · ${graph.edges.length} edges`;
+
+    // Build legend from used SC types
+    const usedTypes = [...new Set(graph.edges.map(e => e.result))];
+    const legendEl = document.getElementById('graphLegend');
+    legendEl.innerHTML = usedTypes.sort((a, b) => tier(b) - tier(a)).map(t =>
+      `<div class="graph-legend-item">
+        <span class="sc-dot" style="background:${SC_COLORS[t] || '#888'}"></span>
+        <span style="display:inline-flex;gap:1px;vertical-align:middle;">${scIconsHtml(t, 14)}</span>
+        <span style="color:${scSafeTextColor(t)};font-weight:600">${t}</span>
+      </div>`
+    ).join('');
+  }
+
+  function drawGraph() {
+    const canvas = document.getElementById('graphCanvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
+    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+    const textColor = isDark ? '#e5e7eb' : '#0f172a';
+    const nodeBg = isDark ? '#1f2937' : '#ffffff';
+    const nodeBorder = isDark ? 'rgba(148,163,184,0.5)' : 'rgba(15,23,42,0.28)';
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    ctx.translate(graph.pan.x, graph.pan.y);
+    ctx.scale(graph.zoom, graph.zoom);
+
+    const nodeById = new Map(graph.nodes.map(n => [n.id, n]));
+
+    // Draw edges
+    for (const e of graph.edges) {
+      const a = nodeById.get(e.from);
+      const b = nodeById.get(e.to);
+      if (!a || !b) continue;
+      const color = SC_COLORS[e.result] || '#888';
+      const dim = graph.selectedNode && graph.selectedNode !== e.from && graph.selectedNode !== e.to;
+      ctx.globalAlpha = dim ? 0.12 : 0.8;
+
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const ux = dx / dist, uy = dy / dist;
+
+      // Slightly curved if there's a reverse edge
+      const hasReverse = graph.edges.some(e2 => e2.from === e.to && e2.to === e.from);
+      const curve = hasReverse ? 18 : 0;
+
+      const sx = a.x + ux * NODE_R;
+      const sy = a.y + uy * NODE_R;
+      const ex2 = b.x - ux * NODE_R;
+      const ey2 = b.y - uy * NODE_R;
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      if (curve) {
+        const mx = (sx + ex2) / 2 - uy * curve;
+        const my = (sy + ey2) / 2 + ux * curve;
+        ctx.moveTo(sx, sy);
+        ctx.quadraticCurveTo(mx, my, ex2, ey2);
+        ctx.stroke();
+        const tx2 = ex2 - mx, ty2 = ey2 - my;
+        const tl = Math.sqrt(tx2 * tx2 + ty2 * ty2) || 1;
+        drawArrow(ctx, ex2, ey2, tx2 / tl, ty2 / tl, color);
+      } else {
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(ex2, ey2);
+        ctx.stroke();
+        drawArrow(ctx, ex2, ey2, ux, uy, color);
+      }
+    }
+
+    // Draw nodes
+    for (const n of graph.nodes) {
+      const isSelected = graph.selectedNode === n.id;
+      const dimNode = graph.selectedNode && !isSelected;
+      ctx.globalAlpha = dimNode ? 0.3 : 1;
+
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, NODE_R, 0, Math.PI * 2);
+      ctx.fillStyle = nodeBg;
+      ctx.fill();
+      ctx.strokeStyle = isSelected ? '#60a5fa' : nodeBorder;
+      ctx.lineWidth = isSelected ? 2.5 : 1.5;
+      ctx.stroke();
+
+      if (n.pinned) {
+        ctx.fillStyle = '#60a5fa44';
+        ctx.fill();
+      }
+
+      ctx.globalAlpha = dimNode ? 0.3 : 1;
+      ctx.fillStyle = textColor;
+      ctx.font = `${FONT_SIZE}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      wrapText(ctx, n.label, n.x, n.y, NODE_R * 1.8, FONT_SIZE + 2);
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  function drawArrow(ctx, x, y, ux, uy, color) {
+    const len = 9, width = 5;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x - ux * len + uy * width, y - uy * len - ux * width);
+    ctx.lineTo(x - ux * len - uy * width, y - uy * len + ux * width);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function wrapText(ctx, text, x, y, maxW, lineH) {
+    const words = text.split(' ');
+    let line = '';
+    const lines = [];
+    for (const word of words) {
+      const test = line ? line + ' ' + word : word;
+      if (ctx.measureText(test).width > maxW && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    const startY = y - ((lines.length - 1) * lineH) / 2;
+    for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], x, startY + i * lineH);
+  }
+
+  function simStep() {
+    const nodes = graph.nodes;
+    const edges = graph.edges;
+    if (!nodes.length) return;
+
+    const canvas = document.getElementById('graphCanvas');
+    const W = canvas.width / graph.zoom;
+    const H = canvas.height / graph.zoom;
+    const cx = W / 2, cy = H / 2;
+    const nodeById = new Map(nodes.map(n => [n.id, n]));
+
+    const REPULSION = 3800;
+    const SPRING_K = 0.04;
+    const REST_LEN = 130;
+    const GRAVITY = 0.012;
+    const DAMPING = 0.82;
+
+    for (const n of nodes) { n.fx = 0; n.fy = 0; }
+
+    // Repulsion
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i], b = nodes[j];
+        let dx = b.x - a.x, dy = b.y - a.y;
+        const d2 = dx * dx + dy * dy || 0.01;
+        const d = Math.sqrt(d2);
+        const f = REPULSION / d2;
+        const fx = (dx / d) * f, fy = (dy / d) * f;
+        a.fx -= fx; a.fy -= fy;
+        b.fx += fx; b.fy += fy;
+      }
+    }
+
+    // Spring attraction along edges
+    for (const e of edges) {
+      const a = nodeById.get(e.from), b = nodeById.get(e.to);
+      if (!a || !b) continue;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const d = Math.sqrt(dx * dx + dy * dy) || 1;
+      const f = SPRING_K * (d - REST_LEN);
+      const fx = (dx / d) * f, fy = (dy / d) * f;
+      a.fx += fx; a.fy += fy;
+      b.fx -= fx; b.fy -= fy;
+    }
+
+    // Gravity toward center
+    for (const n of nodes) {
+      n.fx += (cx - n.x) * GRAVITY;
+      n.fy += (cy - n.y) * GRAVITY;
+    }
+
+    // Integrate
+    let maxV = 0;
+    for (const n of nodes) {
+      if (n.pinned) { n.vx = 0; n.vy = 0; continue; }
+      n.vx = (n.vx + n.fx) * DAMPING;
+      n.vy = (n.vy + n.fy) * DAMPING;
+      n.x += n.vx;
+      n.y += n.vy;
+      // Keep in bounds
+      n.x = Math.max(NODE_R + 4, Math.min(W - NODE_R - 4, n.x));
+      n.y = Math.max(NODE_R + 4, Math.min(H - NODE_R - 4, n.y));
+      maxV = Math.max(maxV, Math.abs(n.vx) + Math.abs(n.vy));
+    }
+
+    drawGraph();
+    if (maxV > 0.4 || graph.dragging) {
+      graph.animFrame = requestAnimationFrame(simStep);
+    } else {
+      graph.simRunning = false;
+      graph.animFrame = null;
+      drawGraph();
+    }
+  }
+
+  function startSim() {
+    if (graph.simRunning) return;
+    graph.simRunning = true;
+    graph.animFrame = requestAnimationFrame(simStep);
+  }
+
+  function renderGraph() {
+    buildGraph(state.wsFlat, state.filters);
+    const canvas = document.getElementById('graphCanvas');
+    canvas.width = canvas.clientWidth || 700;
+    startSim();
+  }
+
+  // Canvas interaction
+  (() => {
+    const canvas = document.getElementById('graphCanvas');
+
+    function canvasPoint(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const cx = (e.clientX - rect.left) * scaleX;
+      const cy = (e.clientY - rect.top) * scaleY;
+      return {
+        x: (cx - graph.pan.x) / graph.zoom,
+        y: (cy - graph.pan.y) / graph.zoom,
+      };
+    }
+
+    function hitNode(px, py) {
+      for (let i = graph.nodes.length - 1; i >= 0; i--) {
+        const n = graph.nodes[i];
+        const dx = px - n.x, dy = py - n.y;
+        if (dx * dx + dy * dy <= NODE_R * NODE_R) return n;
+      }
+      return null;
+    }
+
+    canvas.addEventListener('mousedown', e => {
+      const p = canvasPoint(e);
+      const hit = hitNode(p.x, p.y);
+      if (hit) {
+        graph.dragging = hit;
+        hit.pinned = true;
+        graph.selectedNode = graph.selectedNode === hit.id ? null : hit.id;
+        updatePinNodeButton();
+        startSim();
+      } else {
+        graph.panning = true;
+        graph.panStart = { x: e.clientX - graph.pan.x, y: e.clientY - graph.pan.y };
+        graph.selectedNode = null;
+        updatePinNodeButton();
+        drawGraph();
+      }
+    });
+
+    window.addEventListener('mousemove', e => {
+      if (graph.dragging) {
+        const p = canvasPoint(e);
+        graph.dragging.x = p.x;
+        graph.dragging.y = p.y;
+        graph.dragging.vx = 0;
+        graph.dragging.vy = 0;
+        startSim();
+      } else if (graph.panning && graph.panStart) {
+        graph.pan.x = e.clientX - graph.panStart.x;
+        graph.pan.y = e.clientY - graph.panStart.y;
+        drawGraph();
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      graph.dragging = null;
+      graph.panning = false;
+    });
+
+    canvas.addEventListener('wheel', e => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      const rect = canvas.getBoundingClientRect();
+      const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+      const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+      graph.pan.x = mx - (mx - graph.pan.x) * factor;
+      graph.pan.y = my - (my - graph.pan.y) * factor;
+      graph.zoom = Math.max(0.2, Math.min(4, graph.zoom * factor));
+      drawGraph();
+    }, { passive: false });
+
+    window.addEventListener('resize', () => {
+      canvas.width = canvas.clientWidth || 700;
+      drawGraph();
+    });
+  })();
+
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Buttons
   $('#btnCopy').addEventListener('click', async () => {
     try {
@@ -952,6 +1649,19 @@
       setTimeout(() => (btn.textContent = old), 900);
     } catch {
       alert('Clipboard copy failed (browser permissions). You can manually copy from the output box.');
+    }
+  });
+
+  $('#btnShareLink').addEventListener('click', async () => {
+    const url = location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      const btn = $('#btnShareLink');
+      const old = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => (btn.textContent = old), 1200);
+    } catch {
+      prompt('Copy this link to share:', url);
     }
   });
 
@@ -979,6 +1689,42 @@
     refresh();
   });
 
+  $('#btnGraphReset').addEventListener('click', () => {
+    graph.nodes.forEach(n => { n.pinned = false; });
+    graph.pan = { x: 0, y: 0 };
+    graph.zoom = 1;
+    // Scatter nodes so sim re-settles
+    const canvas = document.getElementById('graphCanvas');
+    const W = canvas.clientWidth || 700;
+    graph.nodes.forEach(n => {
+      n.x = W / 2 + (Math.random() - 0.5) * W * 0.6;
+      n.y = 260 + (Math.random() - 0.5) * 400;
+      n.vx = 0; n.vy = 0;
+    });
+    startSim();
+  });
+  $('#btnGraphPin').addEventListener('click', () => {
+    graph.nodes.forEach(n => { n.pinned = false; });
+    updatePinNodeButton();
+    startSim();
+  });
+
+  $('#btnGraphPinNode').addEventListener('click', () => {
+    const n = graph.nodes.find(n => n.id === graph.selectedNode);
+    if (!n) return;
+    n.pinned = !n.pinned;
+    updatePinNodeButton();
+    if (!n.pinned) startSim();
+    else drawGraph();
+  });
+
+  function updatePinNodeButton() {
+    const btn = $('#btnGraphPinNode');
+    const n = graph.nodes.find(n => n.id === graph.selectedNode);
+    btn.disabled = !n;
+    btn.textContent = n?.pinned ? 'Unpin node' : 'Pin node';
+  }
+
   $('#btnExpandAll').addEventListener('click', () => { document.querySelectorAll('details').forEach(d => d.open = true); });
   $('#btnDumpCsv').addEventListener('click', dumpCurrentSequencesCsv);
   $('#btnCollapseAll').addEventListener('click', () => { document.querySelectorAll('details').forEach(d => d.open = false); });
@@ -997,8 +1743,70 @@
     });
   }
 
+  // ─── Share link ──────────────────────────────────────────────────────────
+  function encodeStateToURL() {
+    const p = new URLSearchParams();
+    const skillsVal = state.skills.map(v => v == null ? '' : String(v)).join(',');
+    if (skillsVal.replace(/,/g, '')) p.set('s', skillsVal);
+
+    // Encode the enabled WS IDs (those NOT in the disabled set)
+    const enabledIds = state.wsFlat.filter(w => !state.filters.ws.selected.has(w.id)).map(w => w.id);
+    if (enabledIds.length) p.set('ew', enabledIds.join(','));
+
+    if (state.filters.result.selected.size) {
+      p.set('rm', state.filters.result.mode === 'exclude' ? 'e' : 'i');
+      p.set('rf', [...state.filters.result.selected].join(','));
+    }
+    if (!state.allowRepeatedWS) p.set('rw', '0');
+
+    const url = location.href.split('?')[0].split('#')[0];
+    const qs = p.toString();
+    history.replaceState(null, '', qs ? url + '?' + qs : url);
+  }
+
+  function decodeURLToState() {
+    const p = new URLSearchParams(location.search);
+    if (!p.toString()) return false;
+
+    if (p.has('s')) {
+      const parts = p.get('s').split(',');
+      for (let i = 0; i < 6; i++) {
+        const v = parts[i];
+        state.skills[i] = (v && v !== '') ? Number(v) : null;
+      }
+    }
+
+    // Store enabled WS IDs to apply after WS pool is built
+    if (p.has('ew')) {
+      state._pendingEnabledWS = new Set(p.get('ew').split(',').map(Number));
+    }
+
+    if (p.has('rf')) {
+      state.filters.result.mode = p.get('rm') === 'e' ? 'exclude' : 'include';
+      for (const prop of p.get('rf').split(',')) {
+        if (prop) state.filters.result.selected.add(prop);
+      }
+    }
+
+    if (p.get('rw') === '0') state.allowRepeatedWS = false;
+
+    return true;
+  }
+
+  function syncSelectsFromState() {
+    const skillSelects = document.querySelectorAll('#skillRow select');
+    state.skills.forEach((v, i) => {
+      if (skillSelects[i] && v != null) skillSelects[i].value = String(v);
+    });
+    const repeatBox = document.getElementById('allowRepeatWS');
+    if (repeatBox) repeatBox.checked = state.allowRepeatedWS;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Init
+  const _hadURLState = decodeURLToState();
   renderRows();
+  if (_hadURLState) syncSelectsFromState();
   ruleFiltersUI = {
     result: renderRuleFilterSection('Result', 'result'),
   };
@@ -1014,5 +1822,6 @@
   }
 
 </script>
-</body>
-</html>
+
+
+</body></html>
