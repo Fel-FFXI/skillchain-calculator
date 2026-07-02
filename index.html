@@ -1471,7 +1471,7 @@
   function simStep() {
     const nodes = graph.nodes;
     const edges = graph.edges;
-    if (!nodes.length) return;
+    if (!nodes.length) { graph.simRunning = false; graph.animFrame = null; return; }
 
     const canvas = document.getElementById('graphCanvas');
     const W = canvas.width / graph.zoom;
@@ -1553,6 +1553,9 @@
     buildGraph(state.wsFlat, state.filters);
     const canvas = document.getElementById('graphCanvas');
     canvas.width = canvas.clientWidth || 700;
+    if (graph.animFrame) cancelAnimationFrame(graph.animFrame);
+    graph.simRunning = false;
+    graph.animFrame = null;
     startSim();
   }
 
