@@ -375,6 +375,8 @@
     Compression:   '#444444',  // Darkness  = black
   };
 
+  const ALL_SC_TYPES = Object.keys(SC_COLORS);
+
   function tier(p) {
     return (p === 'Light' || p === 'Darkness') ? 3
       : (p === 'Fusion' || p === 'Fragmentation' || p === 'Distortion' || p === 'Gravitation') ? 2
@@ -461,7 +463,7 @@
     skillchainPairs: [],
     seenWsIds: new Set(),
     filters: {
-      result:       { mode: 'include', selected: new Set() },
+      result:       { mode: 'include', selected: new Set(ALL_SC_TYPES) },
       ws:           { mode: 'exclude', selected: new Set() },
       chainLengths: new Set(),   // empty = show all; '∞' for infinite chains
     }
@@ -715,6 +717,7 @@
     const chainsByResult = new Map();
     const visited = new Set();
     const allChains = [];
+    const graphEdges = new Map(); // all valid WS pairs, not capped by MAX_EXAMPLES
 
     // Recursive function to build chains
     // currentChain: array of WS objects
@@ -750,6 +753,13 @@
 
         // Apply filters
         if (!applyModeFilter(filters.result.selected, filters.result.mode, result)) continue;
+
+        // Track every valid WS pair for the graph (uncapped — not limited by MAX_EXAMPLES)
+        const gKey = `${lastWS.id}\0${nextWS.id}`;
+        const gPrev = graphEdges.get(gKey);
+        if (!gPrev || tier(result) > tier(gPrev.result)) {
+          graphEdges.set(gKey, { from: lastWS.id, to: nextWS.id, result });
+        }
 
         // Add this chain to results
         const newChain = [...currentChain, nextWS];
@@ -848,7 +858,7 @@
       });
     }
 
-    return { groups, totalChains, allChains };
+    return { groups, totalChains, allChains, graphEdges };
   }
 
 
@@ -988,7 +998,9 @@
 
   function updateFilterSummaries() {
     const parts = [];
-    if (state.filters.result.selected.size) parts.push(`Result(${state.filters.result.mode}:${state.filters.result.selected.size})`);
+    const rSize = state.filters.result.selected.size;
+    const rAllSelected = rSize === ALL_SC_TYPES.length && state.filters.result.mode === 'include';
+    if (rSize && !rAllSelected) parts.push(`Result(${state.filters.result.mode}:${rSize})`);
     if (state.filters.ws.selected.size) parts.push(`Disabled WS(${state.filters.ws.selected.size})`);
     document.getElementById('propFilterSummary').textContent = parts.length ? parts.join(' · ') : 'No filters';
 
@@ -1138,6 +1150,7 @@
     // Skillchain pairs
     const sc = computeSkillchainChains(state.wsFlat, state.filters, state.wsSkillCounts);
     state.skillchainPairs = sc.groups;
+    state.graphEdges = sc.graphEdges;
     $('#chainCount').textContent = String(sc.totalChains);
 
     // Build chain-length filter UI
@@ -1286,32 +1299,17 @@
           }
         }
       }
-    } else {
-      // No chain-length filter: compute directly from SC rules
-      for (const a of enabledWS) {
-        for (const b of enabledWS) {
-          if (!state.allowRepeatedWS && a.id === b.id) continue;
-          for (const propA of a.sc) {
-            const innerMap = SC_RULES.get(propA);
-            if (!innerMap) continue;
-            for (const propB of b.sc) {
-              const result = innerMap.get(propB);
-              if (!result) continue;
-              if (filters.result.selected.size) {
-                const passes = filters.result.selected.has(result);
-                if (filters.result.mode === 'include' && !passes) continue;
-                if (filters.result.mode === 'exclude' &&  passes) continue;
-              }
-              nodeMap.set(a.id, a.en);
-              nodeMap.set(b.id, b.en);
-              const k = `${a.id}→${b.id}`;
-              const prev = edgeKey.get(k);
-              if (!prev || tier(result) > tier(prev.result)) edgeKey.set(k, { from: a.id, to: b.id, result });
-              break;
-            }
-            if (edgeKey.has(`${a.id}→${b.id}`)) break;
-          }
-        }
+    } else if (state.graphEdges) {
+      // No step filter: use all WS pairs gathered during chain computation.
+      // These already respect party skill-count constraints, matching the sequence card.
+      const wsById = new Map(enabledWS.map(w => [w.id, w]));
+      for (const edge of state.graphEdges.values()) {
+        const a = wsById.get(edge.from);
+        const b = wsById.get(edge.to);
+        if (!a || !b) continue;
+        nodeMap.set(a.id, a.en);
+        nodeMap.set(b.id, b.en);
+        edgeKey.set(`${a.id}→${b.id}`, edge);
       }
     }
 
@@ -1756,7 +1754,9 @@
     const enabledIds = state.wsFlat.filter(w => !state.filters.ws.selected.has(w.id)).map(w => w.id);
     if (enabledIds.length) p.set('ew', enabledIds.join(','));
 
-    if (state.filters.result.selected.size) {
+    const _rSize = state.filters.result.selected.size;
+    const _rAllInclude = _rSize === ALL_SC_TYPES.length && state.filters.result.mode === 'include';
+    if (_rSize && !_rAllInclude) {
       p.set('rm', state.filters.result.mode === 'exclude' ? 'e' : 'i');
       p.set('rf', [...state.filters.result.selected].join(','));
     }
@@ -1786,6 +1786,7 @@
 
     if (p.has('rf')) {
       state.filters.result.mode = p.get('rm') === 'e' ? 'exclude' : 'include';
+      state.filters.result.selected.clear();
       for (const prop of p.get('rf').split(',')) {
         if (prop) state.filters.result.selected.add(prop);
       }
