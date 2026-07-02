@@ -1167,15 +1167,17 @@
     } else {
       const sortedLengths = [...allLengths].sort((a, b) => a - b);
       const tokens = sortedLengths.map(l => String(l));
-      if (anyInfinite) tokens.push('∞');
+      tokens.push('∞');
       const anyActive = clActive.size === 0;
       clFilterDiv.innerHTML = `<span class="muted small" style="margin-right:2px">Steps:</span>`
         + `<button id="btnClAny" style="padding:2px 10px;font-size:12px;font-weight:600;${anyActive ? 'background:var(--accent);color:#fff;border-color:var(--accent);' : ''}">Any</button>`
         + tokens.map(t => {
-            const active = clActive.has(t);
-            const label = t === '∞' ? '∞ Infinite' : t + (t === '1' ? ' Step' : ' Steps');
-            const btn = `<button data-cl="${t}" style="padding:2px 10px;font-size:12px;font-weight:600;${active ? 'background:var(--accent);color:#fff;border-color:var(--accent);' : ''}">${label}</button>`;
-            if (t !== '∞') return btn;
+            const isInf = t === '∞';
+            const noInf = isInf && !anyInfinite;
+            const active = !noInf && clActive.has(t);
+            const label = isInf ? '∞ Infinite' : t + (t === '1' ? ' Step' : ' Steps');
+            const btn = `<button data-cl="${t}" style="padding:2px 10px;font-size:12px;font-weight:600;${noInf ? 'opacity:0.4;' : (active ? 'background:var(--accent);color:#fff;border-color:var(--accent);' : '')}" ${noInf ? 'disabled' : ''}>${label}</button>`;
+            if (!isInf) return btn;
             const tipText = 'Level 1 Infinite Skill Chains:\nLiquefaction ↔ Scission\nScission ↔ Detonation\nTransfixion ↔ Compression\n\nLevel 2 Infinite Skill Chain:\nFusion → Gravitation → Fragmentation → Distortion → Fusion …';
             return `<span style="display:inline-flex;align-items:center;gap:2px">${btn}<span title="${tipText}" style="cursor:help;color:var(--muted);font-size:12px;line-height:1">ⓘ</span></span>`;
           }).join('');
@@ -1760,6 +1762,7 @@
       p.set('rm', state.filters.result.mode === 'exclude' ? 'e' : 'i');
       p.set('rf', [...state.filters.result.selected].join(','));
     }
+    if (state.filters.chainLengths.size) p.set('cl', [...state.filters.chainLengths].join(','));
     if (!state.allowRepeatedWS) p.set('rw', '0');
 
     const url = location.href.split('?')[0].split('#')[0];
@@ -1792,6 +1795,12 @@
       }
     }
 
+    if (p.has('cl')) {
+      state.filters.chainLengths.clear();
+      for (const v of p.get('cl').split(',')) {
+        if (v) state.filters.chainLengths.add(v);
+      }
+    }
     if (p.get('rw') === '0') state.allowRepeatedWS = false;
 
     return true;
