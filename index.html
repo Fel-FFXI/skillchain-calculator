@@ -91,6 +91,9 @@
     #graphCanvas:active { cursor:grabbing; }
     .graph-legend { display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:10px; }
     .graph-legend-item { display:flex; align-items:center; gap:5px; font-size:12px; }
+    .chain-row { cursor:pointer; border-radius:4px; transition:background 0.1s; }
+    .chain-row:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+    .chain-row.chain-selected { background: color-mix(in srgb, var(--accent) 14%, transparent); outline:1px solid color-mix(in srgb, var(--accent) 50%, transparent); }
   </style>
 </head>
 <body>
@@ -766,9 +769,8 @@
         if (!applyModeFilter(filters.result.selected, filters.result.mode, result)) continue;
 
         // Track every valid WS pair for the graph (uncapped — not limited by MAX_EXAMPLES)
-        const gKey = `${lastWS.id}\0${nextWS.id}`;
-        const gPrev = graphEdges.get(gKey);
-        if (!gPrev || tier(result) > tier(gPrev.result)) {
+        const gKey = `${lastWS.id}\0${nextWS.id}\0${result}`;
+        if (!graphEdges.has(gKey)) {
           graphEdges.set(gKey, { from: lastWS.id, to: nextWS.id, result });
         }
 
@@ -1225,6 +1227,7 @@
         const clLengthsMeta = g.chainLengths.map(n => n + (n === 1 ? ' step' : ' steps')).join(', ');
         const meta = `<span class="muted small">(${g.count} total chain${g.count !== 1 ? 's' : ''}, showing up to ${visibleExamples.length} example${visibleExamples.length !== 1 ? 's' : ''}, chain lengths: ${clLengthsMeta}${g.hasInfinite ? ' + ∞' : ''})</span>`;
 
+        const wsNameToId = new Map(state.wsFlat.map(w => [w.en, w.id]));
         const coloredRows = visibleExamples.map(ex => {
           const wsParts = ex.wsLine.split(' → ');
           const scParts = ex.scLine.split(' → ');
@@ -1235,7 +1238,9 @@
           const stepBadge = `<span style="display:inline-block;padding:1px 6px;border-radius:6px;font-size:11px;font-weight:700;background:var(--field-bg);border:1px solid var(--border);color:var(--muted);margin-left:6px;vertical-align:middle">${steps} Step${steps !== 1 ? 's' : ''}</span>`;
           const wsHtml = wsParts.join(' <span style="opacity:.5">→</span> ');
           const scHtml = scParts.map(s => scBadge(s)).join(' <span style="opacity:.5">→</span> ');
-          return `<div style="padding:4px 0; border-bottom:1px solid var(--border);">
+          const encodedIds = wsParts.map(n => wsNameToId.get(n) ?? '').join(',');
+          const encodedResults = scParts.join(',');
+          return `<div class="chain-row" data-ws-ids="${encodedIds}" data-sc-results="${encodedResults}" style="padding:4px 0; border-bottom:1px solid var(--border);">
             <div style="font-family:monospace;font-size:13px">• ${wsHtml}${stepBadge}${infBadge}</div>
             <div style="margin-left:1.2em;margin-top:2px">${scHtml}</div>
           </div>`;
@@ -1247,6 +1252,25 @@
       }).filter(Boolean).join('');
 
       if (!scDiv.innerHTML) scDiv.innerHTML = '<span class="muted">No chains match the selected chain length filter.</span>';
+
+      scDiv.addEventListener('click', e => {
+        const row = e.target.closest('.chain-row');
+        if (!row) return;
+        const isSelected = row.classList.contains('chain-selected');
+        document.querySelectorAll('.chain-row.chain-selected').forEach(r => r.classList.remove('chain-selected'));
+        if (isSelected) {
+          graph.selectedChain = null;
+        } else {
+          row.classList.add('chain-selected');
+          const wsIds = row.dataset.wsIds.split(',').map(Number);
+          const results = row.dataset.scResults.split(',');
+          const steps = results.map((r, i) => ({ from: wsIds[i], to: wsIds[i + 1], result: r }));
+          graph.selectedChain = { steps, startId: wsIds[0] };
+          graph.selectedNode = null;
+          updatePinNodeButton();
+        }
+        drawGraph();
+      });
     }
 
     renderGraph();
@@ -1278,6 +1302,7 @@
     simRunning: false,
     edgeLabel: 'none',    // 'none' | 'level' | 'name'
     edgeLabelPos: 'midpoint',  // 'midpoint' | 'near-head' | 'near-tail' | 'rotated'
+    selectedChain: null,  // { steps: [{from,to,result}], startId } | null
   };
 
   const NODE_R = 28;
@@ -1308,9 +1333,8 @@
             const result = scParts[i];
             nodeMap.set(a.id, a.en);
             nodeMap.set(b.id, b.en);
-            const k = `${a.id}→${b.id}`;
-            const prev = edgeKey.get(k);
-            if (!prev || tier(result) > tier(prev.result)) edgeKey.set(k, { from: a.id, to: b.id, result });
+            const k = `${a.id}→${b.id}→${result}`;
+            if (!edgeKey.has(k)) edgeKey.set(k, { from: a.id, to: b.id, result });
           }
         }
       }
@@ -1324,7 +1348,7 @@
         if (!a || !b) continue;
         nodeMap.set(a.id, a.en);
         nodeMap.set(b.id, b.en);
-        edgeKey.set(`${a.id}→${b.id}`, edge);
+        edgeKey.set(`${a.id}→${b.id}→${edge.result}`, edge);
       }
     }
 
@@ -1414,14 +1438,80 @@
 
     const nodeById = new Map(graph.nodes.map(n => [n.id, n]));
 
+    // Precompute self-loop counts per node for angle fanning
+    const selfLoopsByNode = new Map();
+    // Precompute parallel edge groups (same from→to, different results) for perpendicular fanning
+    const parallelGroups = new Map();
+    for (const e of graph.edges) {
+      if (e.from === e.to) {
+        if (!selfLoopsByNode.has(e.from)) selfLoopsByNode.set(e.from, []);
+        selfLoopsByNode.get(e.from).push(e);
+      } else {
+        const pk = `${e.from}\0${e.to}`;
+        if (!parallelGroups.has(pk)) parallelGroups.set(pk, []);
+        parallelGroups.get(pk).push(e);
+      }
+    }
+
     // Draw edges
     for (const e of graph.edges) {
       const a = nodeById.get(e.from);
       const b = nodeById.get(e.to);
       if (!a || !b) continue;
       const color = SC_COLORS[e.result] || '#888';
-      const dim = graph.selectedNode && graph.selectedNode !== e.from && graph.selectedNode !== e.to;
+      const dim = graph.selectedChain
+        ? !graph.selectedChain.steps.some(s => s.from === e.from && s.to === e.to && s.result === e.result)
+        : (graph.selectedNode && graph.selectedNode !== e.from && graph.selectedNode !== e.to);
       ctx.globalAlpha = dim ? 0.12 : 0.8;
+
+      // Self-loop: WS chains with itself
+      if (e.from === e.to) {
+        const loops = selfLoopsByNode.get(e.from);
+        const loopIdx = loops.indexOf(e);
+        const loopCount = loops.length;
+        const spread = Math.PI / 5;
+        const ang = -Math.PI / 2 + spread * (loopIdx - (loopCount - 1) / 2);
+        const loopOut = NODE_R * 1.8;
+        const loopHW = NODE_R * 1.1;
+        const angS = ang - 0.52, angE = ang + 0.52;
+        const slSx = a.x + Math.cos(angS) * NODE_R;
+        const slSy = a.y + Math.sin(angS) * NODE_R;
+        const slEx = a.x + Math.cos(angE) * NODE_R;
+        const slEy = a.y + Math.sin(angE) * NODE_R;
+        const slAx = Math.cos(ang), slAy = Math.sin(ang);
+        const slPx = -Math.sin(ang), slPy = Math.cos(ang);
+        const slCp1x = a.x + slAx * (NODE_R + loopOut) - slPx * loopHW;
+        const slCp1y = a.y + slAy * (NODE_R + loopOut) - slPy * loopHW;
+        const slCp2x = a.x + slAx * (NODE_R + loopOut) + slPx * loopHW;
+        const slCp2y = a.y + slAy * (NODE_R + loopOut) + slPy * loopHW;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(slSx, slSy);
+        ctx.bezierCurveTo(slCp1x, slCp1y, slCp2x, slCp2y, slEx, slEy);
+        ctx.stroke();
+        const slTx = slEx - slCp2x, slTy = slEy - slCp2y;
+        const slTl = Math.sqrt(slTx * slTx + slTy * slTy) || 1;
+        drawArrow(ctx, slEx, slEy, slTx / slTl, slTy / slTl, color);
+        if (graph.edgeLabel !== 'none') {
+          const t = 0.5, mt = 1 - t;
+          const lx = mt*mt*mt*slSx + 3*mt*mt*t*slCp1x + 3*mt*t*t*slCp2x + t*t*t*slEx;
+          const ly = mt*mt*mt*slSy + 3*mt*mt*t*slCp1y + 3*mt*t*t*slCp2y + t*t*t*slEy;
+          const label = graph.edgeLabel === 'level' ? String(tier(e.result)) : e.result;
+          ctx.save();
+          ctx.globalAlpha = dim ? 0.15 : 1;
+          ctx.font = 'bold 10px system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const tw = ctx.measureText(label).width;
+          ctx.fillStyle = isDark ? 'rgba(15,23,42,0.85)' : 'rgba(255,255,255,0.85)';
+          ctx.fillRect(lx - tw / 2 - 3, ly - 7, tw + 6, 14);
+          ctx.fillStyle = color;
+          ctx.fillText(label, lx, ly);
+          ctx.restore();
+        }
+        continue;
+      }
 
       const dx = b.x - a.x, dy = b.y - a.y;
       const dist = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -1429,7 +1519,10 @@
 
       // Slightly curved if there's a reverse edge
       const hasReverse = graph.edges.some(e2 => e2.from === e.to && e2.to === e.from);
-      const curve = hasReverse ? 18 : 0;
+      const pGroup = parallelGroups.get(`${e.from}\0${e.to}`) || [e];
+      const pIdx = pGroup.indexOf(e);
+      const pCount = pGroup.length;
+      const curve = (hasReverse ? 22 : 0) + 22 * (pIdx - (pCount - 1) / 2);
 
       const sx = a.x + ux * NODE_R;
       const sy = a.y + uy * NODE_R;
@@ -1470,7 +1563,8 @@
             const ddy = 2*(1-t)*(cpy-sy) + 2*t*(ey2-cpy);
             angle = Math.atan2(ddy, ddx);
           } else {
-            lx -= uy * 10; ly += ux * 10;
+            const lOff = curve < 0 ? -10 : 10;
+            lx -= uy * lOff; ly += ux * lOff;
           }
         } else {
           lx = (1-posT)*sx + posT*ex2;
@@ -1502,18 +1596,38 @@
     // Draw nodes
     for (const n of graph.nodes) {
       const isSelected = graph.selectedNode === n.id;
-      const dimNode = graph.selectedNode && !isSelected;
+      const isChainStart = graph.selectedChain && n.id === graph.selectedChain.startId;
+      const inChain = graph.selectedChain
+        ? graph.selectedChain.steps.some(s => s.from === n.id || s.to === n.id)
+        : false;
+      const dimNode = graph.selectedChain ? !inChain : (graph.selectedNode && !isSelected);
       ctx.globalAlpha = dimNode ? 0.3 : 1;
 
       ctx.beginPath();
       ctx.arc(n.x, n.y, NODE_R, 0, Math.PI * 2);
       ctx.fillStyle = nodeBg;
       ctx.fill();
-      ctx.strokeStyle = isSelected ? '#60a5fa' : nodeBorder;
-      ctx.lineWidth = isSelected ? 2.5 : 1.5;
+      ctx.strokeStyle = isChainStart ? '#60a5fa' : (isSelected ? '#60a5fa' : nodeBorder);
+      ctx.lineWidth = isChainStart ? 3 : (isSelected ? 2.5 : 1.5);
       ctx.stroke();
 
+      if (isChainStart) {
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, NODE_R + 6, 0, Math.PI * 2);
+        ctx.strokeStyle = '#60a5fa';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.globalAlpha = dimNode ? 0.3 : 1;
+        ctx.fillStyle = '#60a5fa';
+        ctx.font = `bold 9px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('START', n.x, n.y - NODE_R - 10);
+      }
+
       if (n.pinned) {
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, NODE_R, 0, Math.PI * 2);
         ctx.fillStyle = '#60a5fa44';
         ctx.fill();
       }
@@ -1678,6 +1792,10 @@
     canvas.addEventListener('mousedown', e => {
       const p = canvasPoint(e);
       const hit = hitNode(p.x, p.y);
+      if (graph.selectedChain) {
+        graph.selectedChain = null;
+        document.querySelectorAll('.chain-row.chain-selected').forEach(r => r.classList.remove('chain-selected'));
+      }
       if (hit) {
         graph.dragging = hit;
         hit.pinned = true;
