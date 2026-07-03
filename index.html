@@ -201,8 +201,8 @@
       <button id="btnGraphPin">Unpin all</button>
       <button id="btnGraphPinNode" disabled>Pin node</button>
     </div>
-    <canvas id="graphCanvas" height="692" style="margin-top:12px;" width="2361"></canvas>
-    <div class="graph-legend" id="graphLegend"></div>
+    <div class="graph-legend" id="graphLegend" style="margin-top:10px;"></div>
+    <canvas id="graphCanvas" height="692" style="margin-top:8px;" width="2361"></canvas>
   </div>
 
   <div class="card is-hidden">
@@ -705,11 +705,22 @@
       'Scission\0Detonation',   'Detonation\0Scission',
       'Transfixion\0Compression', 'Compression\0Transfixion',
     ]);
-    function completesRing(results) {
+    function completesRing(results, lastResult, newChain) {
       const n = results.length;
-      if (n >= 4 && L2_RING_TAILS.has(results.slice(n - 4).join('\0'))) return true;
-      if (n >= 2 && L1_RING_TAILS.has(results.slice(n - 2).join('\0'))) return true;
-      return false;
+      let nextExpected = null;
+      if (n >= 4 && L2_RING_TAILS.has(results.slice(n - 4).join('\0'))) {
+        nextExpected = results[n - 4];
+      } else if (n >= 2 && L1_RING_TAILS.has(results.slice(n - 2).join('\0'))) {
+        nextExpected = results[n - 2];
+      }
+      if (nextExpected === null) return false;
+      // A ring is infinite only if it can wrap around: some WS already used in this
+      // chain can produce the next expected SC from the current resonance, meaning the
+      // same group of players can repeat the sequence indefinitely.
+      const chainWsIds = new Set(newChain.map(ws => ws.id));
+      return (continueStep.get(lastResult) || []).some(e =>
+        e.result === nextExpected && chainWsIds.has(e.nextWS.id)
+      );
     }
 
     // Store chains grouped by final result.
@@ -776,7 +787,7 @@
         }
 
         const isRepeat = seenResults.has(result);
-        const isInfinite = completesRing(newResults) ||
+        const isInfinite = completesRing(newResults, result, newChain) ||
           (isRepeat && result !== 'Light' && result !== 'Darkness');
 
         const bucket = chainsByResult.get(result);
