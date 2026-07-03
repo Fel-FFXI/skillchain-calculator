@@ -201,7 +201,7 @@
       <button id="btnGraphPin">Unpin all</button>
       <button id="btnGraphPinNode" disabled>Pin node</button>
     </div>
-    <div class="graph-legend" id="graphLegend" style="margin-top:10px;"></div>
+    <div id="graphLegend" style="margin-top:10px;"></div>
     <canvas id="graphCanvas" height="692" style="margin-top:8px;" width="2361"></canvas>
   </div>
 
@@ -1276,6 +1276,8 @@
     selectedNode: null,
     animFrame: null,
     simRunning: false,
+    edgeLabel: 'none',    // 'none' | 'level' | 'name'
+    edgeLabelPos: 'midpoint',  // 'midpoint' | 'near-head' | 'near-tail' | 'rotated'
   };
 
   const NODE_R = 28;
@@ -1351,13 +1353,48 @@
     // Build legend from used SC types
     const usedTypes = [...new Set(graph.edges.map(e => e.result))];
     const legendEl = document.getElementById('graphLegend');
-    legendEl.innerHTML = usedTypes.sort((a, b) => tier(b) - tier(a)).map(t =>
+    const scDotsHtml = usedTypes.sort((a, b) => tier(b) - tier(a)).map(t =>
       `<div class="graph-legend-item">
         <span class="sc-dot" style="background:${SC_COLORS[t] || '#888'}"></span>
         <span style="display:inline-flex;gap:1px;vertical-align:middle;">${scIconsHtml(t, 14)}</span>
         <span style="color:${scSafeTextColor(t)};font-weight:600">${t}</span>
       </div>`
     ).join('');
+    const selStyle = `font-size:12px;padding:2px 4px;background:var(--field-bg);color:inherit;border:1px solid var(--border);border-radius:4px;`;
+    legendEl.innerHTML =
+      `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;white-space:nowrap;">
+          <span style="font-size:11px;color:var(--muted);">Arrow Labels:</span>
+          <select id="graphEdgeLabelSelect" style="${selStyle}">
+            <option value="none"${graph.edgeLabel === 'none' ? ' selected' : ''}>None</option>
+            <option value="level"${graph.edgeLabel === 'level' ? ' selected' : ''}>Level</option>
+            <option value="name"${graph.edgeLabel === 'name' ? ' selected' : ''}>Name</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;white-space:nowrap;">
+          <span style="font-size:11px;color:var(--muted);">Label Position:</span>
+          <select id="graphEdgeLabelPosSelect" style="${selStyle}">
+            <option value="midpoint"${graph.edgeLabelPos === 'midpoint' ? ' selected' : ''}>Midpoint</option>
+            <option value="near-head"${graph.edgeLabelPos === 'near-head' ? ' selected' : ''}>Near Head</option>
+            <option value="near-tail"${graph.edgeLabelPos === 'near-tail' ? ' selected' : ''}>Near Tail</option>
+            <option value="rotated"${graph.edgeLabelPos === 'rotated' ? ' selected' : ''}>Rotated</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;">
+          <span style="font-size:11px;color:var(--muted);white-space:nowrap;">Legend:</span>
+          ${scDotsHtml}
+        </div>
+      </div>`;
+    document.getElementById('graphEdgeLabelSelect').addEventListener('change', e => {
+      graph.edgeLabel = e.target.value;
+      drawGraph();
+      encodeStateToURL();
+    });
+    document.getElementById('graphEdgeLabelPosSelect').addEventListener('change', e => {
+      graph.edgeLabelPos = e.target.value;
+      drawGraph();
+      encodeStateToURL();
+    });
   }
 
   function drawGraph() {
@@ -1402,13 +1439,14 @@
       ctx.strokeStyle = color;
       ctx.lineWidth = 2;
       ctx.beginPath();
+      let cpx = 0, cpy = 0;
       if (curve) {
-        const mx = (sx + ex2) / 2 - uy * curve;
-        const my = (sy + ey2) / 2 + ux * curve;
+        cpx = (sx + ex2) / 2 - uy * curve;
+        cpy = (sy + ey2) / 2 + ux * curve;
         ctx.moveTo(sx, sy);
-        ctx.quadraticCurveTo(mx, my, ex2, ey2);
+        ctx.quadraticCurveTo(cpx, cpy, ex2, ey2);
         ctx.stroke();
-        const tx2 = ex2 - mx, ty2 = ey2 - my;
+        const tx2 = ex2 - cpx, ty2 = ey2 - cpy;
         const tl = Math.sqrt(tx2 * tx2 + ty2 * ty2) || 1;
         drawArrow(ctx, ex2, ey2, tx2 / tl, ty2 / tl, color);
       } else {
@@ -1416,6 +1454,48 @@
         ctx.lineTo(ex2, ey2);
         ctx.stroke();
         drawArrow(ctx, ex2, ey2, ux, uy, color);
+      }
+
+      if (graph.edgeLabel !== 'none') {
+        const posT = graph.edgeLabelPos === 'near-head' ? 0.75
+          : graph.edgeLabelPos === 'near-tail' ? 0.25 : 0.5;
+        const isRotated = graph.edgeLabelPos === 'rotated';
+        let lx, ly, angle = 0;
+        if (curve) {
+          const t = posT;
+          lx = (1-t)*(1-t)*sx + 2*(1-t)*t*cpx + t*t*ex2;
+          ly = (1-t)*(1-t)*sy + 2*(1-t)*t*cpy + t*t*ey2;
+          if (isRotated) {
+            const ddx = 2*(1-t)*(cpx-sx) + 2*t*(ex2-cpx);
+            const ddy = 2*(1-t)*(cpy-sy) + 2*t*(ey2-cpy);
+            angle = Math.atan2(ddy, ddx);
+          } else {
+            lx -= uy * 10; ly += ux * 10;
+          }
+        } else {
+          lx = (1-posT)*sx + posT*ex2;
+          ly = (1-posT)*sy + posT*ey2;
+          if (isRotated) {
+            angle = Math.atan2(uy, ux);
+            if (angle > Math.PI/2 || angle < -Math.PI/2) angle += Math.PI;
+          } else {
+            lx -= uy * 18; ly += ux * 18;
+          }
+        }
+        const label = graph.edgeLabel === 'level' ? String(tier(e.result)) : e.result;
+        ctx.save();
+        ctx.globalAlpha = dim ? 0.15 : 1;
+        ctx.font = 'bold 10px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.translate(lx, ly);
+        if (isRotated) ctx.rotate(angle);
+        const tw = ctx.measureText(label).width;
+        ctx.fillStyle = isDark ? 'rgba(15,23,42,0.85)' : 'rgba(255,255,255,0.85)';
+        ctx.fillRect(-tw/2 - 3, -7, tw + 6, 14);
+        ctx.fillStyle = color;
+        ctx.fillText(label, 0, 0);
+        ctx.restore();
       }
     }
 
@@ -1775,6 +1855,8 @@
     }
     if (state.filters.chainLengths.size) p.set('cl', [...state.filters.chainLengths].join(','));
     if (!state.allowRepeatedWS) p.set('rw', '0');
+    if (graph.edgeLabel !== 'none') p.set('el', graph.edgeLabel);
+    if (graph.edgeLabelPos !== 'midpoint') p.set('elp', graph.edgeLabelPos);
 
     const url = location.href.split('?')[0].split('#')[0];
     const qs = p.toString();
@@ -1813,6 +1895,8 @@
       }
     }
     if (p.get('rw') === '0') state.allowRepeatedWS = false;
+    if (p.has('el')) graph.edgeLabel = p.get('el');
+    if (p.has('elp')) graph.edgeLabelPos = p.get('elp');
 
     return true;
   }
