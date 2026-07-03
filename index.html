@@ -1253,7 +1253,7 @@
 
       if (!scDiv.innerHTML) scDiv.innerHTML = '<span class="muted">No chains match the selected chain length filter.</span>';
 
-      scDiv.addEventListener('click', e => {
+      scDiv.onclick = e => {
         const row = e.target.closest('.chain-row');
         if (!row) return;
         const isSelected = row.classList.contains('chain-selected');
@@ -1270,7 +1270,7 @@
           updatePinNodeButton();
         }
         drawGraph();
-      });
+      };
     }
 
     renderGraph();
@@ -1362,6 +1362,8 @@
     graph.nodes = [...nodeMap.entries()].map(([id, label]) => {
       const old = oldNodes.get(id);
       if (old) return { id, label, x: old.x, y: old.y, vx: 0, vy: 0, pinned: old.pinned };
+      const saved = state._pendingNodePositions?.get(id);
+      if (saved) { graph._skipSim = true; return { id, label, x: saved.x, y: saved.y, vx: 0, vy: 0, pinned: false }; }
       return {
         id, label,
         x: W / 2 + (Math.random() - 0.5) * W * 0.6,
@@ -1369,6 +1371,7 @@
         vx: 0, vy: 0, pinned: false
       };
     });
+    if (state._pendingNodePositions) delete state._pendingNodePositions;
     graph.edges = [...edgeKey.values()];
 
     document.getElementById('graphNodeCount').textContent =
@@ -1745,6 +1748,7 @@
       graph.simRunning = false;
       graph.animFrame = null;
       drawGraph();
+      encodeStateToURL();
     }
   }
 
@@ -1761,7 +1765,7 @@
     if (graph.animFrame) cancelAnimationFrame(graph.animFrame);
     graph.simRunning = false;
     graph.animFrame = null;
-    startSim();
+    if (graph._skipSim) { graph._skipSim = false; drawGraph(); } else { startSim(); }
   }
 
   // Canvas interaction
@@ -1827,8 +1831,11 @@
     });
 
     window.addEventListener('mouseup', () => {
+      const wasDragging = graph.dragging;
+      const wasPanning = graph.panning;
       graph.dragging = null;
       graph.panning = false;
+      if (wasDragging || wasPanning) encodeStateToURL();
     });
 
     canvas.addEventListener('wheel', e => {
@@ -1841,6 +1848,7 @@
       graph.pan.y = my - (my - graph.pan.y) * factor;
       graph.zoom = Math.max(0.2, Math.min(4, graph.zoom * factor));
       drawGraph();
+      encodeStateToURL();
     }, { passive: false });
 
     window.addEventListener('resize', () => {
@@ -1975,6 +1983,9 @@
     if (!state.allowRepeatedWS) p.set('rw', '0');
     if (graph.edgeLabel !== 'none') p.set('el', graph.edgeLabel);
     if (graph.edgeLabelPos !== 'midpoint') p.set('elp', graph.edgeLabelPos);
+    if (graph.nodes.length) p.set('np', graph.nodes.map(n => `${n.id}~${Math.round(n.x)}~${Math.round(n.y)}`).join('_'));
+    if (graph.zoom !== 1) p.set('gz', graph.zoom.toFixed(2));
+    if (graph.pan.x !== 0 || graph.pan.y !== 0) p.set('gp', `${Math.round(graph.pan.x)}~${Math.round(graph.pan.y)}`);
 
     const url = location.href.split('?')[0].split('#')[0];
     const qs = p.toString();
@@ -2015,6 +2026,19 @@
     if (p.get('rw') === '0') state.allowRepeatedWS = false;
     if (p.has('el')) graph.edgeLabel = p.get('el');
     if (p.has('elp')) graph.edgeLabelPos = p.get('elp');
+    if (p.has('np')) {
+      const positions = new Map();
+      for (const entry of p.get('np').split('_')) {
+        const [id, x, y] = entry.split('~').map(Number);
+        if (!isNaN(id) && !isNaN(x) && !isNaN(y)) positions.set(id, { x, y });
+      }
+      state._pendingNodePositions = positions;
+    }
+    if (p.has('gz')) graph.zoom = parseFloat(p.get('gz')) || 1;
+    if (p.has('gp')) {
+      const [px, py] = p.get('gp').split('~').map(Number);
+      if (!isNaN(px) && !isNaN(py)) { graph.pan.x = px; graph.pan.y = py; }
+    }
 
     return true;
   }
